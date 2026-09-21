@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Is it down, or is it me? Live diagnosis from your browser, Cloudflare edge, and Radar."
+    />
+    <meta name="theme-color" content="#f6821f" />
+    <meta property="og:title" content="IsItMe: is it down, or is it me?" />
+    <meta
+      property="og:description"
+      content="One question, three vantage points: your browser, Cloudflare's edge in 5 regions, and Radar outage data."
+    />
+    <title>IsItMe: is it down, or is it me?</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&display=swap"
+    />
+    <link rel="icon" href="/favicon.ico" />
+    <script>
+      (() => {
+        let mode = "light";
+        try {
+          mode =
+            localStorage.getItem("theme") ||
+            (matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light");
+        } catch {}
+        document.documentElement.setAttribute("data-mode", mode);
+        document.documentElement.style.colorScheme = mode;
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/client/main.tsx"></script>
+  </body>
+</html>

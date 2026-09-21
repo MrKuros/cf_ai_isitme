@@ -1,0 +1,174 @@
+@import "tailwindcss";
+@import "@cloudflare/kumo/styles/tailwind";
+@source "../../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
+@source "../../node_modules/streamdown/dist/*.js";
+@source "../../node_modules/@streamdown/code/dist/*.js";
+
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
+
+@theme {
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* Verdict tones: one hue per "whose problem is it". */
+:root {
+  --tone-good: #15803d;
+  --tone-warn: #b45309;
+  --tone-bad: #dc2626;
+  --tone-you: #2563eb;
+  --tone-dns: #be185d;
+  --tone-idle: #a1a1aa;
+  --brand-me: #f6821f;
+}
+[data-mode="dark"] {
+  --tone-good: #4ade80;
+  --tone-warn: #fbbf24;
+  --tone-bad: #f87171;
+  --tone-you: #60a5fa;
+  --tone-dns: #f472b6;
+  --tone-idle: #71717a;
+  --brand-me: #fb9a43;
+}
+.tone-good {
+  --tone: var(--tone-good);
+}
+.tone-warn {
+  --tone: var(--tone-warn);
+}
+.tone-bad {
+  --tone: var(--tone-bad);
+}
+.tone-you {
+  --tone: var(--tone-you);
+}
+.tone-dns {
+  --tone: var(--tone-dns);
+}
+.tone-idle {
+  --tone: var(--tone-idle);
+}
+
+.tone-text {
+  color: var(--tone);
+}
+.tone-dot {
+  background: var(--tone);
+}
+.tone-soft {
+  background: color-mix(in oklab, var(--tone) 11%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tone) 30%, transparent);
+}
+/* Colored top rule that shows whose problem it is at a glance. */
+.card-accent {
+  border-top: 3px solid var(--tone);
+  transition: border-color 400ms ease;
+}
+
+.brand-me {
+  color: var(--brand-me);
+}
+.brand-you {
+  fill: var(--brand-me);
+}
+.brand-edge {
+  fill: var(--text-color-kumo-default, currentColor);
+}
+.brand-site {
+  fill: var(--tone-good);
+}
+
+/* Running indicator: a sweep along the bottom of a live card. */
+.scan-bar {
+  background: linear-gradient(90deg, transparent, var(--brand-me), transparent)
+    0 0 / 40% 100% no-repeat;
+  animation: scan 1.4s ease-in-out infinite;
+}
+@keyframes scan {
+  from {
+    background-position: -40% 0;
+  }
+  to {
+    background-position: 140% 0;
+  }
+}
+.scan-text {
+  animation: breathe 1.6s ease-in-out infinite;
+}
+@keyframes breathe {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.vantage {
+  animation: rise 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.drawer {
+  animation: slide-in 180ms ease-out;
+}
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-bar,
+  .scan-text,
+  .vantage,
+  .drawer {
+    animation: none;
+  }
+}
+
+/* Streamdown prose */
+.sd-theme > * + * {
+  margin-top: 0.6em;
+}
+.sd-theme ul {
+  list-style: disc;
+  padding-left: 1.25em;
+}
+.sd-theme ol {
+  list-style: decimal;
+  padding-left: 1.25em;
+}
+.sd-theme li + li {
+  margin-top: 0.25em;
+}
+.sd-theme a {
+  color: var(--text-color-kumo-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.sd-theme code:not(pre code) {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  padding: 0.1em 0.35em;
+  border-radius: 0.35em;
+  background: var(--color-kumo-tint);
+}
+.sd-theme strong {
+  font-weight: 600;
+}
