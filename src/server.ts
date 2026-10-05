@@ -7,6 +7,7 @@ import { ProviderDO } from "./agents/provider-do";
 import { TrendsDO } from "./agents/trends-do";
 import { IsItMeMcp } from "./agents/mcp";
 import { DiagnoseWorkflow } from "./workflow/diagnose";
+import { normalizeTarget } from "./lib/guard";
 import { clientIp, hashIp, netInfo, publicNetInfo } from "./lib/net";
 import { badgeSvg } from "./lib/badge";
 import { pickLang } from "./lib/lang";
@@ -35,11 +36,21 @@ const withCors = (res: Response) => {
   return res;
 };
 
-/** Decoded, lowercased host path segment, or null when it isn't a hostname. */
+/**
+ * Decoded, lowercased host path segment, or null when it isn't exactly one public host.
+ * The character class alone let `localhost`, `10.0.0.1` and `aaaa` through to
+ * `TARGET_DO.getByName()`, which persists a Durable Object per novel name, so the guard the
+ * client applies (`isPublicHostParam`) runs here too — one place every host route funnels through.
+ * Reports for IPv6 literals are stored unbracketed, so the round trip brackets those first.
+ */
 function hostParam(raw: string): string | null {
   try {
     const h = decodeURIComponent(raw).toLowerCase();
-    return HOST.test(h) ? h : null;
+    if (!HOST.test(h)) return null;
+    const t = normalizeTarget(
+      h.includes(":") && !h.startsWith("[") ? `[${h}]` : h
+    );
+    return "error" in t || t.host !== h ? null : h;
   } catch {
     return null;
   }
@@ -237,12 +248,10 @@ export default {
       } catch {
         return json({ error: "bad json" }, 400);
       }
-      const { host, reportId, browser } = body;
-      if (
-        typeof host !== "string" ||
-        !HOST.test(host) ||
-        typeof reportId !== "string"
-      ) {
+      const { host: rawHost, reportId, browser } = body;
+      // Same guard as the host path routes: a novel TARGET_DO name persists an object.
+      const host = typeof rawHost === "string" ? hostParam(rawHost) : null;
+      if (!host || typeof reportId !== "string") {
         return json({ error: "bad request" }, 400);
       }
       const parsed = parseBrowserProbe(browser);

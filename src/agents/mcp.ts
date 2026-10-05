@@ -4,6 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { hashIp } from "../lib/net";
 import { HOST, MCP_TOOLS } from "../shared/schemas";
 import { REPORT_TTL_DAYS } from "../shared/types";
+import { version } from "../../package.json";
 
 const reply = (result: unknown, isError = false) => ({
   content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
@@ -12,7 +13,7 @@ const reply = (result: unknown, isError = false) => ({
 
 /** Served at /mcp. Tools and their input schemas: MCP_TOOLS in src/shared/schemas.ts. */
 export class IsItMeMcp extends McpAgent<Env> {
-  server = new McpServer({ name: "isitme", version: "1.1.0" });
+  server = new McpServer({ name: "isitme", version });
 
   /** One UserAgent per MCP session, so start_check and get_check meet. */
   private async agent() {

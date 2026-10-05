@@ -1,172 +1,406 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>IsItMe fallback</title>
-<meta name="description" content="Browser-only check: is a site down, or is it just you? Works even when Cloudflare is having a bad day.">
-<style>
-  :root { --bg: #f7f7f5; --card: #fff; --fg: #1b1b1b; --sub: #666; --line: #e3e3de; --brand: #f6821f; --good: #1a7f37; --bad: #c62828; --warn: #a15c00; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #141414; --card: #1d1d1d; --fg: #eee; --sub: #9a9a9a; --line: #2e2e2e; --good: #4ac26b; --bad: #ff6b6b; --warn: #e3a33b; } }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { max-width: 40rem; margin: 0 auto; padding: 2.5rem 16px; }
-  h1 { font-size: 1.9rem; line-height: 1.1; margin: 0 0 .4rem; letter-spacing: -.02em; }
-  h1 span { color: var(--brand); }
-  p { margin: .4rem 0; }
-  .sub { color: var(--sub); font-size: .9rem; }
-  form { display: flex; gap: .5rem; margin: 1.5rem 0 1rem; }
-  input { flex: 1; min-width: 0; padding: .65rem .8rem; font: inherit; color: inherit; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
-  input:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
-  button { padding: .65rem 1rem; font: inherit; font-weight: 600; color: #fff; background: var(--brand); border: 0; border-radius: 10px; cursor: pointer; }
-  button:disabled { opacity: .6; cursor: wait; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 1rem 1.2rem; }
-  .tag { display: inline-block; font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--sub); border: 1px solid var(--line); border-radius: 999px; padding: .1rem .55rem; }
-  .verdict { font-size: 1.35rem; font-weight: 650; margin: .5rem 0 .2rem; }
-  .good { color: var(--good); } .bad { color: var(--bad); } .warn { color: var(--warn); }
-  dl { display: grid; grid-template-columns: 9rem 1fr; gap: .3rem .8rem; margin: 1rem 0 0; font-size: .9rem; }
-  dt { color: var(--sub); } dd { margin: 0; font-family: ui-monospace, monospace; font-size: .85rem; word-break: break-all; }
-  a { color: var(--brand); }
-  footer { margin-top: 2rem; }
-  [hidden] { display: none; }
-</style>
-</head>
-<body>
-<main>
-  <h1>Is it down, or is it <span>me</span>?</h1>
-  <p class="sub">Fallback page for when the main IsItMe app can't load. It runs only in your browser: no server, no Cloudflare edge checks.</p>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IsItMe fallback</title>
+    <meta
+      name="description"
+      content="Browser-only check: is a site down, or is it just you? Works even when Cloudflare is having a bad day."
+    />
+    <style>
+      :root {
+        --bg: #f7f7f5;
+        --card: #fff;
+        --fg: #1b1b1b;
+        --sub: #666;
+        --line: #e3e3de;
+        --brand: #f6821f;
+        --good: #1a7f37;
+        --bad: #c62828;
+        --warn: #a15c00;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #141414;
+          --card: #1d1d1d;
+          --fg: #eee;
+          --sub: #9a9a9a;
+          --line: #2e2e2e;
+          --good: #4ac26b;
+          --bad: #ff6b6b;
+          --warn: #e3a33b;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 2.5rem 16px;
+      }
+      h1 {
+        font-size: 1.9rem;
+        line-height: 1.1;
+        margin: 0 0 0.4rem;
+        letter-spacing: -0.02em;
+      }
+      h1 span {
+        color: var(--brand);
+      }
+      p {
+        margin: 0.4rem 0;
+      }
+      .sub {
+        color: var(--sub);
+        font-size: 0.9rem;
+      }
+      form {
+        display: flex;
+        gap: 0.5rem;
+        margin: 1.5rem 0 1rem;
+      }
+      input {
+        flex: 1;
+        min-width: 0;
+        padding: 0.65rem 0.8rem;
+        font: inherit;
+        color: inherit;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+      }
+      input:focus {
+        outline: 2px solid var(--brand);
+        outline-offset: 1px;
+      }
+      button {
+        padding: 0.65rem 1rem;
+        font: inherit;
+        font-weight: 600;
+        color: #fff;
+        background: var(--brand);
+        border: 0;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1rem 1.2rem;
+      }
+      .tag {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--sub);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0.1rem 0.55rem;
+      }
+      .verdict {
+        font-size: 1.35rem;
+        font-weight: 650;
+        margin: 0.5rem 0 0.2rem;
+      }
+      .good {
+        color: var(--good);
+      }
+      .bad {
+        color: var(--bad);
+      }
+      .warn {
+        color: var(--warn);
+      }
+      dl {
+        display: grid;
+        grid-template-columns: 9rem 1fr;
+        gap: 0.3rem 0.8rem;
+        margin: 1rem 0 0;
+        font-size: 0.9rem;
+      }
+      dt {
+        color: var(--sub);
+      }
+      dd {
+        margin: 0;
+        font-family: ui-monospace, monospace;
+        font-size: 0.85rem;
+        word-break: break-all;
+      }
+      a {
+        color: var(--brand);
+      }
+      footer {
+        margin-top: 2rem;
+      }
+      [hidden] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Is it down, or is it <span>me</span>?</h1>
+      <p class="sub">
+        Fallback page for when the main IsItMe app can't load. It runs only in
+        your browser: no server, no Cloudflare edge checks.
+      </p>
 
-  <form id="f">
-    <input id="u" type="text" inputmode="url" autocomplete="url" placeholder="example.com" aria-label="Site to check" required>
-    <button id="go" type="submit">Check</button>
-  </form>
+      <form id="f">
+        <input
+          id="u"
+          type="text"
+          inputmode="url"
+          autocomplete="url"
+          placeholder="example.com"
+          aria-label="Site to check"
+          required
+        />
+        <button id="go" type="submit">Check</button>
+      </form>
 
-  <section id="out" class="card" hidden aria-live="polite">
-    <span class="tag">Browser-only verdict</span>
-    <p id="verdict" class="verdict"></p>
-    <p id="why" class="sub"></p>
-    <dl id="facts"></dl>
-  </section>
+      <section id="out" class="card" hidden aria-live="polite">
+        <span class="tag">Browser-only verdict</span>
+        <p id="verdict" class="verdict"></p>
+        <p id="why" class="sub"></p>
+        <dl id="facts"></dl>
+      </section>
 
-  <footer class="sub">
-    <p>Browsers can't see status codes, so this can only tell "reachable" from "not reachable". The full app also checks from five Cloudflare regions, Radar and other users.</p>
-    <p>Is Cloudflare itself having problems? <a href="https://www.cloudflarestatus.com" rel="noopener">cloudflarestatus.com</a></p>
-  </footer>
-</main>
-<script>
-(() => {
-  const $ = (id) => document.getElementById(id);
+      <footer class="sub">
+        <p>
+          Browsers can't see status codes, so this can only tell "reachable"
+          from "not reachable". The full app also checks from five Cloudflare
+          regions, Radar and other users.
+        </p>
+        <p>
+          Is Cloudflare itself having problems?
+          <a href="https://www.cloudflarestatus.com" rel="noopener"
+            >cloudflarestatus.com</a
+          >
+        </p>
+      </footer>
+    </main>
+    <script>
+      (() => {
+        const $ = (id) => document.getElementById(id);
 
-  // Copy of src/client/probe.ts: an opaque no-cors response resolves; network, TLS and DNS failures reject.
-  async function noCors(url, ms) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), ms);
-    const t0 = performance.now();
-    try {
-      await fetch(url, { mode: "no-cors", cache: "no-store", signal: ctrl.signal });
-      return { ok: true, ms: Math.round(performance.now() - t0) };
-    } catch (e) {
-      return { ok: false, ms: Math.round(performance.now() - t0), error: e.name === "AbortError" ? "timed out" : String(e.message || e) };
-    } finally {
-      clearTimeout(timer);
-    }
-  }
+        // Copy of src/client/probe.ts: an opaque no-cors response resolves; network, TLS and DNS failures reject.
+        async function noCors(url, ms) {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), ms);
+          const t0 = performance.now();
+          try {
+            await fetch(url, {
+              mode: "no-cors",
+              cache: "no-store",
+              signal: ctrl.signal
+            });
+            return { ok: true, ms: Math.round(performance.now() - t0) };
+          } catch (e) {
+            return {
+              ok: false,
+              ms: Math.round(performance.now() - t0),
+              error:
+                e.name === "AbortError" ? "timed out" : String(e.message || e)
+            };
+          } finally {
+            clearTimeout(timer);
+          }
+        }
 
-  // Only onload proves reachability: onerror fires for a 404 and a dead host alike.
-  function image(src, ms) {
-    return new Promise((resolve) => {
-      const img = new Image();
-      const t0 = performance.now();
-      const done = (ok) => { clearTimeout(timer); img.onload = img.onerror = null; resolve({ ok, ms: Math.round(performance.now() - t0) }); };
-      const timer = setTimeout(() => { img.src = ""; done(false); }, ms);
-      img.onload = () => done(true);
-      img.onerror = () => done(false);
-      img.src = src;
-    });
-  }
+        // Only onload proves reachability: onerror fires for a 404 and a dead host alike.
+        function image(src, ms) {
+          return new Promise((resolve) => {
+            const img = new Image();
+            const t0 = performance.now();
+            const done = (ok) => {
+              clearTimeout(timer);
+              img.onload = img.onerror = null;
+              resolve({ ok, ms: Math.round(performance.now() - t0) });
+            };
+            const timer = setTimeout(() => {
+              img.src = "";
+              done(false);
+            }, ms);
+            img.onload = () => done(true);
+            img.onerror = () => done(false);
+            img.src = src;
+          });
+        }
 
-  async function doh(base, host) {
-    try {
-      const res = await fetch(`${base}?name=${encodeURIComponent(host)}&type=A`, { headers: { accept: "application/dns-json" }, signal: AbortSignal.timeout(5000) });
-      if (!res.ok) return { failed: true };
-      const j = await res.json();
-      return { rcode: j.Status, addresses: (j.Answer || []).filter((a) => a.type === 1).map((a) => a.data) };
-    } catch {
-      return { failed: true };
-    }
-  }
+        async function doh(base, host) {
+          try {
+            const res = await fetch(
+              `${base}?name=${encodeURIComponent(host)}&type=A`,
+              {
+                headers: { accept: "application/dns-json" },
+                signal: AbortSignal.timeout(5000)
+              }
+            );
+            if (!res.ok) return { failed: true };
+            const j = await res.json();
+            return {
+              rcode: j.Status,
+              addresses: (j.Answer || [])
+                .filter((a) => a.type === 1)
+                .map((a) => a.data)
+            };
+          } catch {
+            return { failed: true };
+          }
+        }
 
-  function dohText(d) {
-    if (d.failed) return "resolver unreachable";
-    if (d.rcode === 3) return "NXDOMAIN (no such domain)";
-    if (d.rcode) return `rcode ${d.rcode}`;
-    return d.addresses.length ? d.addresses.slice(0, 3).join(", ") : "no A records";
-  }
+        function dohText(d) {
+          if (d.failed) return "resolver unreachable";
+          if (d.rcode === 3) return "NXDOMAIN (no such domain)";
+          if (d.rcode) return `rcode ${d.rcode}`;
+          return d.addresses.length
+            ? d.addresses.slice(0, 3).join(", ")
+            : "no A records";
+        }
 
-  function verdict(r) {
-    const nx = r.cf.rcode === 3 && r.g.rcode === 3;
-    if (!navigator.onLine) return ["bad", "You're offline", "Your browser reports no network connection."];
-    if (!r.cfCtl.ok && !r.gCtl.ok) return ["bad", "Probably you", "Couldn't reach Cloudflare or Google either, so your own connection looks broken."];
-    if (r.target.ok) {
-      return !r.cfCtl.ok
-        ? ["good", "Reachable from your browser", "But cloudflare.com didn't answer: Cloudflare may be having problems. Check cloudflarestatus.com."]
-        : ["good", "Reachable from your browser", "If it looks broken anyway, the site itself may be erroring (browsers can't see status codes)."];
-    }
-    if (nx) return ["bad", "The domain doesn't exist", "Both 1.1.1.1 and 8.8.8.8 say there is no such domain."];
-    if (!r.cfCtl.ok) return ["warn", "Not reachable, and Cloudflare looks unhealthy", "Google answers but cloudflare.com doesn't. If this site is behind Cloudflare, it's likely a Cloudflare issue. Check cloudflarestatus.com."];
-    return ["bad", "Not reachable from your browser", "Other sites work from here, so it's either the site or something between you and it. Try another network (phone data) to tell which."];
-  }
+        function verdict(r) {
+          const nx = r.cf.rcode === 3 && r.g.rcode === 3;
+          if (!navigator.onLine)
+            return [
+              "bad",
+              "You're offline",
+              "Your browser reports no network connection."
+            ];
+          if (!r.cfCtl.ok && !r.gCtl.ok)
+            return [
+              "bad",
+              "Probably you",
+              "Couldn't reach Cloudflare or Google either, so your own connection looks broken."
+            ];
+          if (r.target.ok) {
+            return !r.cfCtl.ok
+              ? [
+                  "good",
+                  "Reachable from your browser",
+                  "But cloudflare.com didn't answer: Cloudflare may be having problems. Check cloudflarestatus.com."
+                ]
+              : [
+                  "good",
+                  "Reachable from your browser",
+                  "If it looks broken anyway, the site itself may be erroring (browsers can't see status codes)."
+                ];
+          }
+          if (nx)
+            return [
+              "bad",
+              "The domain doesn't exist",
+              "Both 1.1.1.1 and 8.8.8.8 say there is no such domain."
+            ];
+          if (!r.cfCtl.ok)
+            return [
+              "warn",
+              "Not reachable, and Cloudflare looks unhealthy",
+              "Google answers but cloudflare.com doesn't. If this site is behind Cloudflare, it's likely a Cloudflare issue. Check cloudflarestatus.com."
+            ];
+          return [
+            "bad",
+            "Not reachable from your browser",
+            "Other sites work from here, so it's either the site or something between you and it. Try another network (phone data) to tell which."
+          ];
+        }
 
-  $("f").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    let raw = $("u").value.trim();
-    if (!raw) return;
-    if (!/^https?:\/\//i.test(raw)) raw = `https://${raw}`;
-    let url;
-    try { url = new URL(raw); } catch { url = null; }
-    if (!url || !url.hostname.includes(".")) { $("u").setCustomValidity("Enter a site like example.com"); $("u").reportValidity(); return; }
-    $("u").setCustomValidity("");
-    history.replaceState(null, "", `?url=${encodeURIComponent(url.hostname)}`);
-    $("go").disabled = true;
-    $("go").textContent = "Checking…";
-    const host = url.hostname.replace(/^\[|\]$/g, "");
-    const target = async () => {
-      const f = await noCors(url.href, 8000);
-      if (f.ok) return { ...f, method: "no-cors fetch" };
-      const img = await image(`${url.origin}/favicon.ico?${Date.now()}`, 5000);
-      return img.ok ? { ...img, method: "favicon" } : f;
-    };
-    const [t, cfCtl, gCtl, cf, g] = await Promise.all([
-      target(),
-      noCors("https://www.cloudflare.com/cdn-cgi/trace", 6000),
-      noCors("https://www.google.com/generate_204", 6000),
-      doh("https://cloudflare-dns.com/dns-query", host),
-      doh("https://dns.google/resolve", host)
-    ]);
-    const [tone, head, why] = verdict({ target: t, cfCtl, gCtl, cf, g });
-    $("verdict").className = `verdict ${tone}`;
-    $("verdict").textContent = head;
-    $("why").textContent = why;
-    const facts = [
-      ["Site", t.ok ? `reachable in ${t.ms}ms (${t.method})` : `not reachable: ${t.error || "failed"}`],
-      ["cloudflare.com", cfCtl.ok ? `ok, ${cfCtl.ms}ms` : "no answer"],
-      ["google.com", gCtl.ok ? `ok, ${gCtl.ms}ms` : "no answer"],
-      ["DNS via 1.1.1.1", dohText(cf)],
-      ["DNS via 8.8.8.8", dohText(g)]
-    ];
-    $("facts").replaceChildren(...facts.flatMap(([k, v]) => {
-      const dt = document.createElement("dt"); dt.textContent = k;
-      const dd = document.createElement("dd"); dd.textContent = v;
-      return [dt, dd];
-    }));
-    $("out").hidden = false;
-    $("go").disabled = false;
-    $("go").textContent = "Check";
-  });
+        $("f").addEventListener("submit", async (e) => {
+          e.preventDefault();
+          let raw = $("u").value.trim();
+          if (!raw) return;
+          if (!/^https?:\/\//i.test(raw)) raw = `https://${raw}`;
+          let url;
+          try {
+            url = new URL(raw);
+          } catch {
+            url = null;
+          }
+          if (!url || !url.hostname.includes(".")) {
+            $("u").setCustomValidity("Enter a site like example.com");
+            $("u").reportValidity();
+            return;
+          }
+          $("u").setCustomValidity("");
+          history.replaceState(
+            null,
+            "",
+            `?url=${encodeURIComponent(url.hostname)}`
+          );
+          $("go").disabled = true;
+          $("go").textContent = "Checking…";
+          const host = url.hostname.replace(/^\[|\]$/g, "");
+          const target = async () => {
+            const f = await noCors(url.href, 8000);
+            if (f.ok) return { ...f, method: "no-cors fetch" };
+            const img = await image(
+              `${url.origin}/favicon.ico?${Date.now()}`,
+              5000
+            );
+            return img.ok ? { ...img, method: "favicon" } : f;
+          };
+          const [t, cfCtl, gCtl, cf, g] = await Promise.all([
+            target(),
+            noCors("https://www.cloudflare.com/cdn-cgi/trace", 6000),
+            noCors("https://www.google.com/generate_204", 6000),
+            doh("https://cloudflare-dns.com/dns-query", host),
+            doh("https://dns.google/resolve", host)
+          ]);
+          const [tone, head, why] = verdict({ target: t, cfCtl, gCtl, cf, g });
+          $("verdict").className = `verdict ${tone}`;
+          $("verdict").textContent = head;
+          $("why").textContent = why;
+          const facts = [
+            [
+              "Site",
+              t.ok
+                ? `reachable in ${t.ms}ms (${t.method})`
+                : `not reachable: ${t.error || "failed"}`
+            ],
+            ["cloudflare.com", cfCtl.ok ? `ok, ${cfCtl.ms}ms` : "no answer"],
+            ["google.com", gCtl.ok ? `ok, ${gCtl.ms}ms` : "no answer"],
+            ["DNS via 1.1.1.1", dohText(cf)],
+            ["DNS via 8.8.8.8", dohText(g)]
+          ];
+          $("facts").replaceChildren(
+            ...facts.flatMap(([k, v]) => {
+              const dt = document.createElement("dt");
+              dt.textContent = k;
+              const dd = document.createElement("dd");
+              dd.textContent = v;
+              return [dt, dd];
+            })
+          );
+          $("out").hidden = false;
+          $("go").disabled = false;
+          $("go").textContent = "Check";
+        });
 
-  const pre = new URLSearchParams(location.search).get("url");
-  if (pre) { $("u").value = pre.slice(0, 200); $("f").requestSubmit(); }
-})();
-</script>
-</body>
+        const pre = new URLSearchParams(location.search).get("url");
+        if (pre) {
+          $("u").value = pre.slice(0, 200);
+          $("f").requestSubmit();
+        }
+      })();
+    </script>
+  </body>
 </html>

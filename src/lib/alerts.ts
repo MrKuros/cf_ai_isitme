@@ -148,3 +148,13 @@ export function alertEmailRaw(
     body.replace(/\r?\n/g, "\r\n")
   ].join("\r\n");
 }
+
+/** The wrangler.jsonc default: a domain nobody owns, so Email Routing rejects every send. */
+export const EMAIL_PLACEHOLDER_FROM = "alerts@isitme.example";
+
+/** The configured sender, or undefined when email can't work on this deployment. */
+export const emailSender = (from: string | undefined): string | undefined =>
+  from && from !== EMAIL_PLACEHOLDER_FROM ? from : undefined;
+
+export const EMAIL_UNCONFIGURED =
+  "email alerts are not configured on this deployment: set the EMAIL_FROM variable to an address on a zone with Cloudflare Email Routing. Webhooks and in-app alerts work.";

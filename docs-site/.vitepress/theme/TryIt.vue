@@ -2,7 +2,7 @@
   A live check against the deployed app's public API.
   /api/v1/check sends `access-control-allow-origin: *` (src/server.ts withCors),
   so the docs site can call it from the browser. Anything else — a rate limit,
-  a bad host, no deployment yet — falls back to the recorded example.
+  a bad host, an unreachable app — falls back to the recorded example.
 -->
 <script setup>
 import { ref } from "vue";
@@ -15,7 +15,7 @@ const busy = ref(false);
 const result = ref(null);
 const fallback = ref("");
 
-// A sync check runs the whole workflow, which takes ~15-20s.
+// A sync check runs the whole workflow, which takes ~5-15s.
 const TIMEOUT_MS = 45_000;
 
 async function run() {
@@ -74,7 +74,7 @@ async function run() {
       </button>
     </form>
     <p v-if="busy" class="fallback">
-      Running all three vantage points — this takes about 20 seconds.
+      Running all three vantage points — this takes 5 to 15 seconds.
     </p>
     <div v-if="result || fallback" class="out">
       <p v-if="fallback" class="fallback">{{ fallback }}</p>

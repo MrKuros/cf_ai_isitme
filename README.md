@@ -17,20 +17,22 @@ MCP, self-hosting and troubleshooting. The same pages run locally with
 **Live demo:** <https://cf-ai-isitme.patelkashishpatel032.workers.dev> — ask it about any site. Or run it locally
 (below) or [deploy your own](#deploy-your-own).
 
+![One check, start to finish, against the live demo](docs/demo.gif)
+
 ## Why
 
-"Is it down?" sites answer half the question — *is it up from our server?*
-Nobody answers the other half: *is it me?* That half is your device, your ISP,
+"Is it down?" sites answer half the question — _is it up from our server?_
+Nobody answers the other half: _is it me?_ That half is your device, your ISP,
 your resolver and your country, measured and compared against the target's real
 health. IsItMe answers both.
 
 ## Three vantage points
 
-| Vantage | How | What it proves |
-|---|---|---|
-| **Your device** | A browser probe: `no-cors` fetch timing, a `favicon.ico` fallback, Cloudflare and Google DoH from the browser, a control request, and environment hints (VPN, WARP, Private Relay, captive portal, IPv6) | Whether *your* network and resolver can reach it |
-| **Cloudflare's edge** | Both resolvers over DoH, an HTTP probe from the Worker's colo, and five more from Durable Objects placed in `wnam`, `enam`, `weur`, `apac` and `oc` — each reporting the colo it really ran in | Whether the site is up, and where; plus bot protection, TLS failures and "200 but broken" pages |
-| **The internet** | Cloudflare Radar outages, traffic anomalies and BGP events, the site's own status page, a CDN/host fingerprint with a cross-host failure count, and [Globalping](https://globalping.io) probes from outside Cloudflare | Whether your ISP, the site's provider or its routing has a known incident |
+| Vantage               | How                                                                                                                                                                                                                    | What it proves                                                                                  |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **Your device**       | A browser probe: `no-cors` fetch timing, a `favicon.ico` fallback, Cloudflare and Google DoH from the browser, a control request, and environment hints (VPN, WARP, Private Relay, captive portal, IPv6)               | Whether _your_ network and resolver can reach it                                                |
+| **Cloudflare's edge** | Both resolvers over DoH, an HTTP probe from the Worker's colo, and five more from Durable Objects placed in `wnam`, `enam`, `weur`, `apac` and `oc` — each reporting the colo it really ran in                         | Whether the site is up, and where; plus bot protection, TLS failures and "200 but broken" pages |
+| **The internet**      | Cloudflare Radar outages, traffic anomalies and BGP events, the site's own status page, a CDN/host fingerprint with a cross-host failure count, and [Globalping](https://globalping.io) probes from outside Cloudflare | Whether your ISP, the site's provider or its routing has a known incident                       |
 
 ## Rules decide, the LLM explains
 
@@ -83,12 +85,13 @@ curl 'http://localhost:5173/api/v1/check?url=example.com&wait=0'   # 202 + pollP
 1 when it isn't, so it works as a CI gate:
 
 ```bash
-node bin/isitme.mjs example.com --api http://localhost:5173
+node bin/isitme.mjs example.com
 ```
 
 It isn't on npm (the `isitme` package there is someone else's), so run the file
-from a checkout. `--api` (or `$ISITME_API`) points it at whichever deployment you
-use; the built-in default only answers once the app is deployed.
+from a checkout. With no `--api` (or `$ISITME_API`) it talks to the live demo;
+point either at your own deployment or at `http://localhost:5173` to use that
+instead.
 
 There is also an MCP server at `/mcp` (`check_site`, `start_check`, `get_check`,
 `get_report`), share reports at `/r/:host/:id`, a "check from your side" link for
@@ -100,8 +103,8 @@ status badges at `/badge/:host.svg`. The
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/MrKuros/isitme)
 
-The button needs the repo to be public under that name, so until the rename lands,
-deploy from a checkout:
+The button clones this repo into your own account and deploys it. To deploy from
+a checkout instead:
 
 ```bash
 npx wrangler secret put RADAR_TOKEN   # optional; without it the Radar step is skipped
@@ -114,17 +117,23 @@ Multi-region probing only becomes real after a deploy — in local dev every
 `locationHint` lands in your own colo, and the verdict's confidence is capped
 accordingly.
 
+Email alerts stay off until you set the `EMAIL_FROM` var in `wrangler.jsonc` to
+an address on a zone with Cloudflare Email Routing; the shipped default is a
+placeholder, and while it is in place the chat refuses an email address instead
+of storing one that would never be delivered. Webhook and in-app alerts need no
+setup.
+
 ## The Cloudflare assignment
 
 This started as the optional assignment for a Cloudflare Software Engineer
 application, which asks for an AI application with four components:
 
-| Requirement | Where it lives |
-|---|---|
-| **LLM** | Llama 3.3 70B on Workers AI writes every explanation (`src/lib/explain.ts`). Chat tool-routing uses GLM-4.7-Flash, because Llama 3.3's streamed tool-call arguments arrived corrupted in live testing |
-| **Workflow / coordination** | `DiagnoseWorkflow`, a Cloudflare Workflow of retried, timed, partly parallel steps with live progress; six Durable Object classes for per-host coalescing, regional placement, provider stats and trends; Agents SDK scheduling for watches and confirm runs |
-| **User input via chat** | A React SPA served from Workers static assets, over the Agents SDK WebSocket (`useAgent` + `useAgentChat`) |
-| **Memory / state** | `UserAgent` SQLite (reports, runs) plus synced state (watches, alerts, history), persisted chat history, and `TargetDO` SQLite (crowd checks, public reports, latency samples). The system prompt carries your network, your watches and your recent verdicts |
+| Requirement                 | Where it lives                                                                                                                                                                                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **LLM**                     | Llama 3.3 70B on Workers AI writes every explanation (`src/lib/explain.ts`). Chat tool-routing uses GLM-4.7-Flash, because Llama 3.3's streamed tool-call arguments arrived corrupted in live testing                                                         |
+| **Workflow / coordination** | `DiagnoseWorkflow`, a Cloudflare Workflow of retried, timed, partly parallel steps with live progress; six Durable Object classes for per-host coalescing, regional placement, provider stats and trends; Agents SDK scheduling for watches and confirm runs  |
+| **User input via chat**     | A React SPA served from Workers static assets, over the Agents SDK WebSocket (`useAgent` + `useAgentChat`)                                                                                                                                                    |
+| **Memory / state**          | `UserAgent` SQLite (reports, runs) plus synced state (watches, alerts, history), persisted chat history, and `TargetDO` SQLite (crowd checks, public reports, latency samples). The system prompt carries your network, your watches and your recent verdicts |
 
 The prompt history the assignment asks for ships with the submission copy at
 [MrKuros/cf_ai_isitme](https://github.com/MrKuros/cf_ai_isitme).

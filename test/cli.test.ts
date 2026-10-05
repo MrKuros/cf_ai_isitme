@@ -117,6 +117,15 @@ describe("formatOutcome", () => {
     expect(text).toContain("report: https://x.test/r/example.com/abc");
   });
 
+  it("strips markdown bold from the explanation", () => {
+    const text = cli.formatOutcome(
+      { ...outcome, explanation: "Down.\n\n**Next steps**\n- Wait" },
+      {}
+    );
+    expect(text).toContain("Next steps");
+    expect(text).not.toContain("**");
+  });
+
   it("colours only when asked", () => {
     expect(cli.formatOutcome(outcome, { color: false })).not.toContain("\x1b[");
     expect(cli.formatOutcome(outcome, { color: true })).toContain("\x1b[31m");

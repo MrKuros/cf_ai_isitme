@@ -152,7 +152,10 @@ export function formatOutcome(outcome, opts = {}) {
 
   for (const signal of outcome.signals ?? []) lines.push(`  - ${signal}`);
   if (outcome.provider) lines.push(`  - served by ${outcome.provider}`);
-  if (outcome.explanation) lines.push("", outcome.explanation);
+  // The explanation is markdown (the LLM's and the template's both use **bold**);
+  // this output is plain text.
+  if (outcome.explanation)
+    lines.push("", outcome.explanation.replace(/\*\*/g, ""));
   if (outcome.reportPath) lines.push("", `report: ${api}${outcome.reportPath}`);
   return lines.join("\n");
 }

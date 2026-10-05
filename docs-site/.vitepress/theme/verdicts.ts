@@ -3,8 +3,8 @@
  *
  * ponytail: a deliberate copy of `VERDICTS` in `src/client/components/ui.tsx`.
  * That module imports React, Phosphor icons and Tailwind classes, none of
- * which belong in a VitePress build. Keep the two in sync by hand; the list
- * only changes when `Verdict` in `src/shared/types.ts` does.
+ * which belong in a VitePress build. `test/verdicts-sync.test.ts` fails if the
+ * two drift; the list only changes when `Verdict` in `src/shared/types.ts` does.
  */
 export type Tone = "good" | "warn" | "bad" | "you" | "dns" | "idle";
 

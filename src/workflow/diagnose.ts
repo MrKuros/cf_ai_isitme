@@ -318,10 +318,8 @@ export class DiagnoseWorkflow extends AgentWorkflow<
     ) {
       const rootUrl = new URL("/", target.url).toString();
       root = await step
-        .do(
-          "root",
-          HTTP_CFG,
-          async (): Promise<ProbeResult> => t.edge(rootUrl, undefined, true)
+        .do("root", HTTP_CFG, async (): Promise<ProbeResult> =>
+          t.edge(rootUrl, undefined, true)
         )
         .catch(() => null);
     }
@@ -594,11 +592,8 @@ export class DiagnoseWorkflow extends AgentWorkflow<
     if (statusPage?.incidents.length) {
       const failing = VERDICT_CLASS[classification.verdict] === "down";
       evidence.statusLag = await step
-        .do(
-          "statuslag",
-          QUICK_CFG,
-          async (): Promise<Evidence["statusLag"]> =>
-            t.statusLag(statusPage, failing ? startedAt : undefined)
+        .do("statuslag", QUICK_CFG, async (): Promise<Evidence["statusLag"]> =>
+          t.statusLag(statusPage, failing ? startedAt : undefined)
         )
         .catch(() => null);
     }

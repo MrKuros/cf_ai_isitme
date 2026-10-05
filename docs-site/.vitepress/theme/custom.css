@@ -6,7 +6,8 @@
 
 :root {
   --vp-font-family-base: "Geist", ui-sans-serif, system-ui, sans-serif;
-  --vp-font-family-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --vp-font-family-mono:
+    "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   /* Cloudflare orange: the app's --brand-me. */
   --vp-c-brand-1: #c2560d;

@@ -37,18 +37,33 @@ Radar step reports `skipped` and verdicts carry slightly less confidence.
 Everything below must pass before a pull request:
 
 ```bash
-npm test               # vitest, 528 tests, pure logic only
-npx tsc --noEmit
-npm run lint           # oxlint over src/ test/ bin/
+npm run check          # oxfmt --check, oxlint over src/ test/ bin/ scripts/, tsc
+npm test               # vitest, 532 tests, pure logic only
 npx vite build
+npm run smoke          # boots dev:local and asserts every route (~1 min)
 ```
 
-`npm run format` (oxfmt) formats the TypeScript. Markdown and JSON are not
-currently formatted by it cleanly, so don't reformat files you aren't changing.
+`npm run format` (oxfmt) fixes anything `npm run check` complains about.
 
 The unit tests deliberately avoid the Cloudflare vitest pool: they cover pure
-functions only. Anything that needs a real colo, a real Durable Object or the
-real LLM is checked by running the app, not by a test.
+functions only. The routes in `src/server.ts` are covered by `npm run smoke`
+instead, which boots `npm run dev:local` on a free port and asserts the status
+and shape of every response. Don't run it while another dev server is up: two
+workerds sharing `.wrangler/state` deadlock on SQLite.
+
+The chat path needs the real Workers AI, so neither covers it. `npm run e2e`
+drives it in a real browser and asserts one diagnosis card with a verdict and an
+explanation. Point it at a server that has the AI binding:
+
+```bash
+E2E_PORT=5173 npm run e2e                        # alongside npm run dev
+E2E_URL=https://your-worker.workers.dev npm run e2e
+```
+
+It resolves Playwright at runtime rather than depending on it (`npm i --no-save
+playwright` first) and uses Playwright's own Chromium unless `E2E_BROWSER`
+points elsewhere. CI runs `smoke` on every push and `e2e` against the deployed
+app on pushes to `main`.
 
 ## Shape of the project
 
@@ -63,6 +78,7 @@ src/shared/     types.ts (shared types and constants) and schemas.ts (zod)
 src/client/     React SPA: app.tsx is the router, components/ChatApp.tsx is chat
 bin/isitme.mjs  zero-dependency Node CLI over GET /api/v1/check
 test/           vitest, one file per module
+scripts/        smoke.mjs (every route) and e2e.mjs (the chat, in a browser)
 ```
 
 A check flows: chat or API → `DiagnoseWorkflow` → probe steps (DNS, edge, five
@@ -111,12 +127,12 @@ not — we don't mock the platform to feel covered.
 
 `docs/` is for contributors, not users:
 
-| File | What it holds |
-|---|---|
-| `docs/CONTRACTS.md` | Module-level API contracts. **The source of truth for signatures — keep it in sync with any change you make.** |
-| `docs/COMPETITOR_SPEC.md` | Competitor research, the bugs B1–B14, the rules R1–R19, and each item's status |
-| `docs/SDK_NOTES.md` | Agents SDK / Workflows signatures verified against the installed versions |
-| `docs/API.md` | The public REST API |
+| File                      | What it holds                                                                                                  |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `docs/CONTRACTS.md`       | Module-level API contracts. **The source of truth for signatures — keep it in sync with any change you make.** |
+| `docs/COMPETITOR_SPEC.md` | Competitor research, the bugs B1–B14, the rules R1–R19, and each item's status                                 |
+| `docs/SDK_NOTES.md`       | Agents SDK / Workflows signatures verified against the installed versions                                      |
+| `docs/API.md`             | The public REST API                                                                                            |
 
 ## Editing the documentation site
 
@@ -134,7 +150,7 @@ site is something that was actually run. If you can't run it, don't write it.
 
 - One concern per pull request.
 - TypeScript strict, match the surrounding style, sparse comments — comment the
-  *why*, not the *what*.
+  _why_, not the _what_.
 - No new runtime dependency without saying in the pull request why a few lines
   of code won't do.
 - Say what you ran. "528 tests, tsc, lint and build clean" is the bar; if you

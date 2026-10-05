@@ -20,7 +20,14 @@ export default withMermaid(
     appearance: true,
     head: [
       ["link", { rel: "preconnect", href: "https://fonts.googleapis.com" }],
-      ["link", { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" }],
+      [
+        "link",
+        {
+          rel: "preconnect",
+          href: "https://fonts.gstatic.com",
+          crossorigin: ""
+        }
+      ],
       [
         "link",
         {
@@ -30,7 +37,10 @@ export default withMermaid(
       ],
       ["link", { rel: "icon", href: "/isitme/favicon.ico" }],
       ["meta", { name: "theme-color", content: "#f6821f" }],
-      ["meta", { property: "og:title", content: "IsItMe — is it down, or is it me?" }],
+      [
+        "meta",
+        { property: "og:title", content: "IsItMe — is it down, or is it me?" }
+      ],
       ["meta", { property: "og:description", content: DESCRIPTION }],
       ["meta", { property: "og:url", content: `${DOCS_URL}/` }],
       ["meta", { property: "og:image", content: `${DOCS_URL}/og.png` }],
@@ -86,7 +96,8 @@ export default withMermaid(
       },
       outline: [2, 3],
       footer: {
-        message: "MIT licensed. Rules decide the verdict; the LLM only explains.",
+        message:
+          "MIT licensed. Rules decide the verdict; the LLM only explains.",
         copyright: `<a href="${REPO_URL}">Source on GitHub</a>`
       }
     }

@@ -30,6 +30,8 @@ import {
   alertEmailRaw,
   canAddWatch,
   decideWatch,
+  EMAIL_UNCONFIGURED,
+  emailSender,
   MAX_MUTE_MINUTES,
   muteUntil,
   notifyFor,
@@ -95,8 +97,6 @@ const WEBHOOK_TIMEOUT_MS = 5000;
 /** A run still "running" after this lost its terminal callback. */
 const STALE_RUN_MS = 5 * 60_000;
 const DAY_MS = 24 * 60 * 60_000;
-// ponytail: fixed sender; Email Routing needs it on a zone you own, override with the EMAIL_FROM var.
-const ALERT_FROM = "alerts@isitme.example";
 const EMAIL = z.email().max(254);
 
 type ConnState = { ip?: string };
@@ -301,7 +301,7 @@ Rules:
 - After diagnose returns, reply in ONE short sentence that names the verdict in plain words (e.g. "github.com is up everywhere, including from your network."). A card already shows the evidence and explanation: never quote numbers, timings or signals.
 - If diagnose returns ok=false, say briefly why. If the error says the check is still running, say the card will update when it finishes; don't call it a failure.
 - Use watch to monitor a site, unwatch to stop, history for past checks, setWebhook for Slack/Discord alerts, setEmail for email alerts, mute to silence a watch's alerts for a while (maintenance).
-- Never invent probe results. Only state facts that tools returned.
+${emailSender(this.env.EMAIL_FROM) ? "" : "- Email alerts are unavailable on this deployment: offer the sidebar alerts or a webhook instead, and never promise email.\n"}- Never invent probe results. Only state facts that tools returned.
 - For unrelated requests, say in one sentence what you can do.
 
 User's network: ${net}
@@ -387,6 +387,8 @@ ${recent || "none"}`;
           const mail = email ? EMAIL.safeParse(email.trim()) : undefined;
           if (mail && !mail.success)
             return { ok: false, error: "invalid email address" };
+          if (mail && !emailSender(this.env.EMAIL_FROM))
+            return { ok: false, error: EMAIL_UNCONFIGURED };
           let hook: string | undefined;
           if (webhookUrl) {
             const v = await validateWebhook(webhookUrl);
@@ -476,6 +478,8 @@ ${recent || "none"}`;
           const mail = email ? EMAIL.safeParse(email.trim()) : undefined;
           if (mail && !mail.success)
             return { ok: false, error: "invalid email address" };
+          if (mail && !emailSender(this.env.EMAIL_FROM))
+            return { ok: false, error: EMAIL_UNCONFIGURED };
           this.patchWatch(w.id, { email: mail?.data });
           return { ok: true, watchId: w.id, email: mail?.data ?? null };
         }
@@ -1221,11 +1225,14 @@ ${recent || "none"}`;
     return rows.map(toSummary);
   }
 
-  /** Never throws. Cloudflare delivers only to verified destination addresses; local dev just logs it. */
+  /**
+   * Never throws. Skipped entirely unless EMAIL_FROM names a real sender —
+   * Email Routing rejects the placeholder, so there is nothing to attempt.
+   * Cloudflare delivers only to verified destination addresses; local dev just logs it.
+   */
   private async emailAlert(to: string, subject: string, body: string) {
-    if (!this.env.EMAIL) return;
-    const from =
-      (this.env as Env & { EMAIL_FROM?: string }).EMAIL_FROM || ALERT_FROM;
+    const from = emailSender(this.env.EMAIL_FROM);
+    if (!from || !this.env.EMAIL) return;
     try {
       await this.env.EMAIL.send(
         new EmailMessage(from, to, alertEmailRaw(from, to, subject, body))

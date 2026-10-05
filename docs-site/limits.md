@@ -47,7 +47,7 @@ reads the certificate itself — the platform surfaces a failed handshake, not t
 chain — so there is no expiry date to report and no "renew soon" warning. Use a
 certificate monitor for that.
 
-Domain *registration* expiry is read, from RDAP, but only to explain a DNS
+Domain _registration_ expiry is read, from RDAP, but only to explain a DNS
 failure: if a name stops resolving because the domain lapsed, the report says so.
 It never decides a verdict.
 
@@ -55,7 +55,7 @@ It never decides a verdict.
 
 The check from your own machine uses a `no-cors` fetch. The browser deliberately
 hides everything about the response from the page — status code, headers, body.
-All that comes back is *whether the request completed and how long it took*.
+All that comes back is _whether the request completed and how long it took_.
 
 So in your result, "your browser could reach it in 389ms" means exactly that: the
 server answered something. It does not mean HTTP 200. The UI labels this row
@@ -124,6 +124,23 @@ subdomain, then retry. Or run `npm run dev:local`, which skips remote bindings
 entirely — chat tool-calling won't work, but probes, the API, reports, badges and
 every page will.
 
+### The explanation reads like a template, not prose
+
+The verdict, confidence and evidence are all correct, but the paragraph is the
+signals joined with periods followed by **Next steps** and two fixed bullets.
+That is `fallbackExplanation()` in `src/lib/explain.ts`, and the usual reason is
+the Workers AI free allocation:
+
+```console
+AiError: 4006: you have used up your daily free allocation of 10,000 neurons
+```
+
+The rules still decide the verdict, so nothing is wrong with the answer — only
+the wording. The allocation resets daily; the Workers Paid plan removes the cap.
+Both failures are logged, so `wrangler tail` during a check shows
+`[explain] Workers AI call failed` (the call threw) or
+`[explain] empty AI response` (it returned nothing usable).
+
 ### `missing ?url=`
 
 ```console
@@ -152,7 +169,7 @@ $ curl -s "localhost:5173/api/v1/check?url=192.168.1.1"
 ```
 
 Same guard, reached by IP instead of by name. It also fires when a public
-hostname *resolves* to a private address, and on every redirect hop.
+hostname _resolves_ to a private address, and on every redirect hop.
 
 ### `rate limited` (HTTP 429)
 
@@ -205,12 +222,23 @@ them reliably, see the note in [Self-hosting](/self-hosting).
 
 These are properties of the Cloudflare runtime, not bugs in IsItMe.
 
-| Quirk | Effect |
-|---|---|
-| `locationHint` is ignored in local dev | All five regions are one colo. |
-| Local `workerd` reports TLS failures as `internal error` | <Verdict v="TLS_ERROR" /> is not observable locally; it's covered by mocked tests only. |
-| `connect()` is blocked to Cloudflare IP ranges | Authoritative-nameserver lookups over TCP fail for Cloudflare-hosted zones. That row reads "no data" rather than pretending. |
-| Workflows cannot hold WebSockets | Live progress goes Workflow → agent → WebSocket, so a step's progress appears a beat after it finishes. |
+| Quirk                                                    | Effect                                                                                                                                                                                                                       |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `locationHint` is ignored in local dev                   | All five regions are one colo.                                                                                                                                                                                               |
+| Local `workerd` reports TLS failures as `internal error` | <Verdict v="TLS_ERROR" /> is not observable locally. Deployed, Cloudflare's edge answers `HTTP 526` instead and the verdict fires for real — `expired.badssl.com` on the live demo returns <Verdict v="TLS_ERROR" /> at 95%. |
+| `connect()` is blocked to Cloudflare IP ranges           | Authoritative-nameserver lookups over TCP fail for Cloudflare-hosted zones. That row reads "no data" rather than pretending.                                                                                                 |
+| Workflows cannot hold WebSockets                         | Live progress goes Workflow → agent → WebSocket, so a step's progress appears a beat after it finishes.                                                                                                                      |
+
+### When IsItMe itself is unreachable
+
+IsItMe runs on Cloudflare, so a bad day at Cloudflare takes the app with it. For
+that case there is a second copy of the one thing that needs no server:
+[**fallback.html**](/fallback.html), served from GitHub Pages. It runs the
+browser probe only — reachable or not, and how long it took — labels the verdict
+_browser-only_, and links to
+[cloudflarestatus.com](https://www.cloudflarestatus.com). It is the same page the
+app ships at `/fallback.html`, published off Cloudflare so the two can't fail
+together.
 
 ## Still stuck?
 

@@ -6,25 +6,25 @@ description: "Your first check, and how to read the card it gives back."
 <script setup>
 import { SITE_URL } from "./.vitepress/theme/site";
 
-// A real run, 5 October 2026, against a local dev server (`npm run dev`).
+// A real run, 5 October 2026, against the hosted demo.
 const firstCheck = {
   host: "github.com",
   verdict: "HEALTHY",
-  confidence: 0.87,
-  elapsed: 14.8,
+  confidence: 0.95,
+  elapsed: 10.4,
   signals: [
-    "Cloudflare's edge (MAA) got HTTP 200 in 1476ms",
-    "5/5 regions reachable (median 665ms)",
-    "DNS resolved to 1 address in 166ms",
-    "Your browser could reach it in 106ms",
-    "4 checks in the last 10 min, 0 failing",
-    "Radar: no data (no RADAR_TOKEN)",
+    "Cloudflare's edge (MXP) got HTTP 200 in 46ms",
+    "5/5 regions reachable (median 61ms)",
+    "DNS resolved to 1 address in 2ms",
+    "Your browser could reach it in 495ms",
+    "5 checks in the last 10 min, 0 failing",
+    "No ongoing Radar outages or anomalies for your network",
     "All 5 outside probes reached it"
   ],
   explanation:
-    "The site is reachable from every location we checked. Your browser could reach it in 106ms. All outside probes and regions also reached it successfully.",
+    "The site is reachable from all locations. Your browser could reach it in 495ms. All outside probes and regions also reached it successfully.",
   reportPath: "",
-  note: "A real run, 5 October 2026. Radar says \"no data\" because no token was configured."
+  note: "A real run against the hosted demo, 5 October 2026."
 };
 </script>
 
@@ -56,21 +56,21 @@ You don't have to phrase it as a question, and you don't have to paste a full UR
 
 A card appears straight away and fills in as each step finishes. There are eleven steps:
 
-| Step | What it is |
-|---|---|
-| DNS lookup | the name, via 1.1.1.1 and 8.8.8.8 |
-| Cloudflare edge | an HTTP GET from the data centre nearest you |
-| 5 regions | the same GET from US west, US east, Europe, Asia and Oceania |
-| Outside probes | the same GET from volunteer probes outside Cloudflare (Globalping) |
-| Cloudflare Radar | known outages and routing trouble for your network and the site's |
-| Hosting provider | who hosts it, and whether their other sites are failing too |
-| Status page | the site's own status page, if it has one |
-| Your browser | your own machine tries to load it |
-| Crowd reports | what other IsItMe users saw for this site recently |
-| Verdict | the rules read the evidence and pick one of twelve answers |
-| Explanation | the AI writes the paragraph |
+| Step             | What it is                                                         |
+| ---------------- | ------------------------------------------------------------------ |
+| DNS lookup       | the name, via 1.1.1.1 and 8.8.8.8                                  |
+| Cloudflare edge  | an HTTP GET from the data centre nearest you                       |
+| 5 regions        | the same GET from US west, US east, Europe, Asia and Oceania       |
+| Outside probes   | the same GET from volunteer probes outside Cloudflare (Globalping) |
+| Cloudflare Radar | known outages and routing trouble for your network and the site's  |
+| Hosting provider | who hosts it, and whether their other sites are failing too        |
+| Status page      | the site's own status page, if it has one                          |
+| Your browser     | your own machine tries to load it                                  |
+| Crowd reports    | what other IsItMe users saw for this site recently                 |
+| Verdict          | the rules read the evidence and pick one of twelve answers         |
+| Explanation      | the AI writes the paragraph                                        |
 
-A whole check takes about 15–30 seconds. Steps that have nothing to report are marked skipped, not failed.
+A whole check takes about 5–15 seconds on the hosted demo, and longer when the site itself is slow to answer — each probe allows 8 seconds, and 15 more if it has to retry. Steps that have nothing to report are marked skipped, not failed.
 
 ## 4. Read the card
 
@@ -80,13 +80,13 @@ Top to bottom:
 
 **The host and the clock.** What was checked, and how long it took.
 
-**The verdict chip.** One of twelve, with a confidence percentage: <Verdict v="HEALTHY" :confidence="0.87" />. Some verdicts add a subtype — <Verdict v="DNS_FAILURE" sub="domain doesn't exist" :confidence="0.95" /> — which says *which* kind. All twelve are on [Understanding results](/results).
+**The verdict chip.** One of twelve, with a confidence percentage: <Verdict v="HEALTHY" :confidence="0.95" />. Some verdicts add a subtype — <Verdict v="DNS_FAILURE" sub="domain doesn't exist" :confidence="0.95" /> — which says _which_ kind. All twelve are on [Understanding results](/results).
 
-**The headline.** The verdict in one sentence. Note the honesty here: "It's up. Not you, not them." only appears when *your own browser* reached the site too. If the browser step didn't run, the headline is "It's up from everywhere we checked" instead — it won't claim anything about you that it didn't measure.
+**The headline.** The verdict in one sentence. Note the honesty here: "It's up. Not you, not them." only appears when _your own browser_ reached the site too. If the browser step didn't run, the headline is "It's up from everywhere we checked" instead — it won't claim anything about you that it didn't measure.
 
 **The signals.** The plain-language facts the rules actually used, most important first. This is the part to read when you don't trust the verdict: it shows you the same evidence the rules saw, so you can disagree.
 
-**Why 87% confidence.** A fold-out list of what moved the number up and down. In the run above, four agreeing vantage points pushed it up and a missing Radar token pushed it down.
+**Why 95% confidence.** A fold-out list of what moved the number up and down. In the run above, four agreeing vantage points and Radar data being available pushed it to the 0.95 ceiling — the highest the number is ever allowed to go.
 
 **The 24-hour sparkline.** Edge response time for this host over the last day, from everyone's checks. Red ticks are failing checks; the dashed line is the usual latency, which is what "slow" gets measured against.
 
@@ -94,15 +94,15 @@ Top to bottom:
 
 **The buttons.**
 
-| Button | What it does |
-|---|---|
-| Copy share link | a public link to the full report, good for 30 days |
-| Send check link | a link that makes *someone else's* browser run the test, and shows you their result |
-| Copy for support | the whole thing as plain text, for pasting into a ticket |
-| .txt | the same bundle as a file |
-| Status badge | a Markdown snippet for an always-current status badge |
-| Steps | re-show the eleven steps |
-| Evidence | the raw evidence table: every vantage, every answer |
+| Button           | What it does                                                                        |
+| ---------------- | ----------------------------------------------------------------------------------- |
+| Copy share link  | a public link to the full report, good for 30 days                                  |
+| Send check link  | a link that makes _someone else's_ browser run the test, and shows you their result |
+| Copy for support | the whole thing as plain text, for pasting into a ticket                            |
+| .txt             | the same bundle as a file                                                           |
+| Status badge     | a Markdown snippet for an always-current status badge                               |
+| Steps            | re-show the eleven steps                                                            |
+| Evidence         | the raw evidence table: every vantage, every answer                                 |
 
 [Sharing](/sharing) covers the links and the badge.
 
@@ -110,7 +110,7 @@ Top to bottom:
 
 <TryIt />
 
-This box calls the hosted demo's public API directly from your browser. Until the demo is live it shows the recorded example instead, and says so.
+This box calls the hosted demo's public API directly from your browser. If the call fails — a rate limit, a host it refuses — it shows the recorded example instead, and says so.
 
 ## Where to go next
 

@@ -61,6 +61,13 @@ async function radar<T>(token: string, path: string): Promise<T> {
 
 const trim = (s: string | undefined, n = 160) =>
   s && s.length > n ? s.slice(0, n - 1) + "…" : s;
+/**
+ * BGP hijack/leak timestamps come back without a timezone (`"2026-10-05T12:39:18.727"`) while
+ * outage and anomaly dates carry `Z`. An offset-less date-time is parsed as *local* time, so
+ * `classify()`'s `recent()` window would shift by the host's UTC offset. Pin it to UTC here,
+ * at the one place the field is read.
+ */
+const utc = (s?: string) => (s && !/(Z|[+-]\d\d:?\d\d)$/.test(s) ? `${s}Z` : s);
 const newestFirst = <T extends { startDate?: string; startedAt?: string }>(
   a: T,
   b: T
@@ -155,8 +162,8 @@ export async function gatherRadar(
         .map((h) => ({
           kind: "hijack" as const,
           id: String(h.id ?? ""),
-          startedAt: h.min_hijack_ts ?? "",
-          endedAt: h.max_hijack_ts ?? null,
+          startedAt: utc(h.min_hijack_ts) ?? "",
+          endedAt: utc(h.max_hijack_ts) ?? null,
           confidence: h.confidence_score,
           asns: [
             ...new Set(
@@ -170,8 +177,8 @@ export async function gatherRadar(
       ...(leaks?.events ?? []).map((l) => ({
         kind: "leak" as const,
         id: String(l.id ?? ""),
-        startedAt: l.min_ts ?? l.detected_ts ?? "",
-        endedAt: l.finished ? (l.max_ts ?? null) : null,
+        startedAt: utc(l.min_ts ?? l.detected_ts) ?? "",
+        endedAt: l.finished ? (utc(l.max_ts) ?? null) : null,
         asns: [
           ...new Set(
             [l.leak_asn, ...(l.leak_seg ?? [])].filter((x): x is number => !!x)

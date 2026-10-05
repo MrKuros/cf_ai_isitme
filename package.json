@@ -9,10 +9,10 @@
     "cloudflare"
   ],
   "license": "MIT",
-  "type": "module",
   "bin": {
     "isitme": "bin/isitme.mjs"
   },
+  "type": "module",
   "scripts": {
     "dev": "vite dev",
     "start": "vite dev",
@@ -20,9 +20,11 @@
     "deploy": "vite build && wrangler deploy",
     "types": "wrangler types env.d.ts",
     "format": "oxfmt --write .",
-    "lint": "oxlint src/ test/ bin/",
-    "check": "oxfmt --check . && oxlint src/ test/ bin/ && tsc",
+    "lint": "oxlint src/ test/ bin/ scripts/",
+    "check": "oxfmt --check . && oxlint src/ test/ bin/ scripts/ && tsc",
     "test": "vitest run",
+    "smoke": "node scripts/smoke.mjs",
+    "e2e": "node scripts/e2e.mjs",
     "docs:dev": "vitepress dev docs-site",
     "docs:build": "vitepress build docs-site",
     "docs:preview": "vitepress preview docs-site"

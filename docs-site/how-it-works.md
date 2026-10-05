@@ -18,13 +18,14 @@ IsItMe answers the other half: **is the problem you?** Your Wi-Fi, your ISP, you
 
 Each check gathers evidence from three places. Disagreement between them is the answer.
 
-| Vantage | What it does | What it proves |
-|---|---|---|
-| **Your browser** | tries to load the site from your own machine | whether *you* can reach it |
-| **Cloudflare's network** | loads the site from 5 regions (US west, US east, Europe, Asia, Oceania) | whether the world can reach it |
-| **Outage data** | Cloudflare Radar: known outages and routing problems for your ISP, your country and the site's host | whether something bigger is broken |
+| Vantage                  | What it does                                                                                        | What it proves                     |
+| ------------------------ | --------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| **Your browser**         | tries to load the site from your own machine                                                        | whether _you_ can reach it         |
+| **Cloudflare's network** | loads the site from 5 regions (US west, US east, Europe, Asia, Oceania)                             | whether the world can reach it     |
+| **Outage data**          | Cloudflare Radar: known outages and routing problems for your ISP, your country and the site's host | whether something bigger is broken |
 
 > [!NOTE] How they combine
+>
 > - Browser fails + everyone else fine → **it's you**
 > - Browser fine + Asia fails → **regional outage**
 > - Everyone fails → **the site is down**
@@ -46,7 +47,7 @@ flowchart TD
     B -.->|asks your browser to test too| A
 ```
 
-The whole thing takes about 15–20 seconds, and each step appears on screen as it finishes, so nothing feels stuck.
+The whole thing takes about 5–15 seconds, and each step appears on screen as it finishes, so nothing feels stuck.
 
 ## The pieces
 
@@ -79,15 +80,15 @@ Two AI models are used: a small fast one to understand your chat message, and Ll
 
 ## Ways in
 
-| Where | What it's for |
-|---|---|
-| The chat page | the main way: ask, watch, get alerts |
-| A share link | send someone the result you just got |
-| A "check from your side" link | send it to a customer; **their** network runs the test and you see the outcome |
-| Trending page | what's broken right now |
-| A web address other programs can call | put IsItMe in your own scripts |
-| A badge image | show a site's status on a README or page |
-| An AI connection | other assistants (Claude, Cursor) can run checks themselves |
+| Where                                 | What it's for                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------ |
+| The chat page                         | the main way: ask, watch, get alerts                                           |
+| A share link                          | send someone the result you just got                                           |
+| A "check from your side" link         | send it to a customer; **their** network runs the test and you see the outcome |
+| Trending page                         | what's broken right now                                                        |
+| A web address other programs can call | put IsItMe in your own scripts                                                 |
+| A badge image                         | show a site's status on a README or page                                       |
+| An AI connection                      | other assistants (Claude, Cursor) can run checks themselves                    |
 
 ## Safety
 
