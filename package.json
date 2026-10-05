@@ -37,7 +37,7 @@
     "@phosphor-icons/react": "^2.1.10",
     "@streamdown/code": "^2.0.0",
     "agents": "^0.25.0",
-    "ai": "^6.0.197",
+    "ai": "^6.0.300",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "streamdown": "^2.7.0",
