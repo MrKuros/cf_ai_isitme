@@ -20,7 +20,7 @@ POST /mcp
 Once the demo is deployed, that is <code>{{ SITE_URL }}/mcp</code>. For a local copy it is whatever `npm run dev` prints, plus `/mcp`.
 
 > [!NOTE] Examples on this page
-> The hosted app is not deployed yet, so every connection below was made against a local dev server on port 5192. Swap in your own base URL; nothing else changes.
+> The hosted app is live, so the configs below point at it. Swap in your own base URL if you self-host; nothing else changes.
 
 ## Connect Claude Code
 
@@ -32,7 +32,7 @@ claude mcp add --transport http isitme http://localhost:5192/mcp
 
 ```
 Added HTTP MCP server isitme with URL: http://localhost:5192/mcp to local config
-File modified: /home/alien/.claude.json [project: …]
+File modified: ~/.claude.json [project: …]
 ```
 
 Check it:

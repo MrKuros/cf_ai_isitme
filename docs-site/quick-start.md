@@ -36,7 +36,7 @@ Name a site. Read the card. That's the whole product.
 
 The chat is the home page of the app.
 
-- **Hosted demo:** <a :href="SITE_URL">{{ SITE_URL }}</a> — not live yet. This page will be true the moment it is.
+- **Hosted demo:** <a :href="SITE_URL">{{ SITE_URL }}</a> — open it and ask about any site.
 - **Your own copy:** clone the repo and run `npm run dev`. It prints a `localhost` address, and the chat is at `/`. See [Self-hosting](/self-hosting).
 
 > [!NOTE] No account, no sign-up

@@ -22,7 +22,7 @@ That box is a plain `fetch` of `/api/v1/check` from your browser — the same re
 ## Base URL
 
 > [!NOTE] Examples on this page
-> The hosted app is not deployed yet, so every request below was run against a local dev server and the responses are pasted exactly as they came back. Set `$ISITME` to whichever copy you are talking to:
+> Every request below was run for real and the responses are pasted exactly as they came back. Set `$ISITME` to whichever copy you are talking to — the hosted one, or your own:
 
 ```sh
 export ISITME=http://localhost:5173          # npm run dev, whatever port it prints

@@ -14,7 +14,7 @@ every chat command, the twelve verdicts, alerts, sharing, the CLI, the HTTP API,
 MCP, self-hosting and troubleshooting. The same pages run locally with
 `npm run docs:dev`.
 
-**Live demo:** none yet — IsItMe isn't deployed anywhere public. Run it locally
+**Live demo:** <https://cf-ai-isitme.patelkashishpatel032.workers.dev> — ask it about any site. Or run it locally
 (below) or [deploy your own](#deploy-your-own).
 
 ## Why

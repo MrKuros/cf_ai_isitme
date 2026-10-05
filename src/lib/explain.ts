@@ -53,8 +53,9 @@ Rules:
 - Only restate the signals. Never name a provider, ISP, company or cause unless that exact name appears in the JSON.
 - Use only facts present in the JSON. Never invent numbers, locations, causes or status codes.
 - For the browser vantage say "your browser could reach it" or "your browser could not reach it", never "it returned 200".
+- When the evidence has no browser result (API, CLI and MCP checks never have one), never mention the reader's browser at all — not even to say it is missing.
 - Write 2 to 4 plain sentences addressed to the user, then a "Next steps" list of 2 or 3 short, concrete bullets.
-- Next steps must fit the verdict. HEALTHY with the browser reaching it means the network path is fine: suggest page-level fixes (hard refresh, private window, clear site data, another browser), never router restarts or calling the ISP. Only suggest network or ISP steps for LIKELY_YOUR_NETWORK or ISP_OUTAGE. For site-side verdicts say there is nothing to fix locally.
+- Next steps must fit the verdict. HEALTHY with no browser result means the check came from a server, so suggest the reader try the site themselves. HEALTHY with the browser reaching it means the network path is fine: suggest page-level fixes (hard refresh, private window, clear site data, another browser), never router restarts or calling the ISP. Only suggest network or ISP steps for LIKELY_YOUR_NETWORK or ISP_OUTAGE. For site-side verdicts say there is nothing to fix locally.
 - Markdown only, under 120 words total, no headings, no preamble.`;
 
 // `error` strings and the page `title` carry target- or client-controlled text; errorClass and

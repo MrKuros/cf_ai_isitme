@@ -1,6 +1,6 @@
 # IsItMe module contracts
 
-The spec is `/home/alien/.claude/plans/jazzy-greeting-flamingo.md`. SDK signatures are in `docs/SDK_NOTES.md`.
+SDK signatures are in `docs/SDK_NOTES.md`.
 All shared types live in **`src/shared/types.ts`**. Import them from there, and never redefine them locally.
 During wave P0 only the prep step edits it (see Ownership). Outside a wave, new shared fields go there as **optional** fields; mention them in your summary.
 

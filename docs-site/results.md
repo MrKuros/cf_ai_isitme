@@ -68,7 +68,7 @@ Every check ends in exactly one of twelve verdicts. They are picked by fixed rul
 "Alerts a watch" is the only thing the verdict name is used for mechanically: a watch alerts you when it crosses between **up** and **down**, and the three "never" verdicts are deliberately silent. [Watching and alerts](/watching) explains why.
 
 > [!NOTE] Five of the twelve have a real example on this page
-> The rest need either a multi-region deployment or a real outage, and this project is not deployed yet. Where there's no live run to paste, the section says what the rule requires instead of inventing output. [Limits and troubleshooting](/limits) lists what a local copy can't show you.
+> The rest need a real outage to happen while we're watching. Where there's no live run to paste, the section says what the rule requires instead of inventing output. [Limits and troubleshooting](/limits) lists what a local copy can't show you.
 
 ## It's working
 

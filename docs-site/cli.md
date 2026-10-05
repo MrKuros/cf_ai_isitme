@@ -14,7 +14,7 @@ import { SITE_URL } from "./.vitepress/theme/site";
 It is a client of [`GET /api/v1/check`](/api#check-a-site) and nothing else. There is no agent, no WebSocket and **no probe from your own machine**, which matters for what it can tell you: see [what the CLI cannot see](#what-the-cli-cannot-see).
 
 > [!NOTE] Examples on this page
-> The hosted app is not deployed yet, so every command below was run against a local dev server (`npm run dev`) with `ISITME_API` pointing at it. The output is real; only the base URL will change. Once the deploy lands, the built-in default is <code>{{ SITE_URL }}</code> and you can drop `ISITME_API` entirely.
+> Every command below was run for real. The CLI talks to <code>{{ SITE_URL }}</code> by default, so you can leave `ISITME_API` unset unless you are pointing it at your own copy.
 
 ## Install
 
