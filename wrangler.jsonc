@@ -17,7 +17,8 @@
       { "name": "PROBE_DO", "class_name": "ProbeDO" },
       { "name": "MCP_OBJECT", "class_name": "IsItMeMcp" },
       { "name": "PROVIDER_DO", "class_name": "ProviderDO" },
-      { "name": "TRENDS_DO", "class_name": "TrendsDO" }
+      { "name": "TRENDS_DO", "class_name": "TrendsDO" },
+      { "name": "RATE_DO", "class_name": "RateDO" }
     ]
   },
   "migrations": [
@@ -26,20 +27,14 @@
       "new_sqlite_classes": ["UserAgent", "TargetDO", "ProbeDO", "IsItMeMcp"]
     },
     { "tag": "v2", "new_sqlite_classes": ["ProviderDO"] },
-    { "tag": "v3", "new_sqlite_classes": ["TrendsDO"] }
+    { "tag": "v3", "new_sqlite_classes": ["TrendsDO"] },
+    { "tag": "v4", "new_sqlite_classes": ["RateDO"] }
   ],
   "workflows": [
     {
       "name": "diagnose-workflow",
       "binding": "DIAGNOSE_WORKFLOW",
       "class_name": "DiagnoseWorkflow"
-    }
-  ],
-  "ratelimits": [
-    {
-      "name": "RATE_LIMITER",
-      "namespace_id": "1001",
-      "simple": { "limit": 20, "period": 60 }
     }
   ],
   "analytics_engine_datasets": [

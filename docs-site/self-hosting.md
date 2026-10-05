@@ -48,7 +48,7 @@ hand first.
 | `PROVIDER_DO`       | Durable Object   | Counts failures per hosting provider, so a Cloudflare- or AWS-wide problem is recognised as one.                    |
 | `TRENDS_DO`         | Durable Object   | The global "what's breaking now" list behind `/trending`.                                                           |
 | `MCP_OBJECT`        | Durable Object   | Session state for the MCP server at `/mcp`.                                                                         |
-| `RATE_LIMITER`      | Rate limiting    | 20 requests per 60 seconds per IP, counted separately for each kind of endpoint.                                    |
+| `RATE_DO`           | Durable Object   | Rate limiting: 20 requests per 60 seconds per IP, counted separately for each kind of endpoint.                     |
 | `ANALYTICS`         | Analytics Engine | Writes one row per check so you can query your own usage. Nothing is written if you remove it.                      |
 | `EMAIL`             | Email sending    | Email alerts for watched sites. Needs setup — see below.                                                            |
 | `assets`            | Static assets    | Serves the built SPA from `dist/`. `/agents/*`, `/api/*`, `/mcp*` and `/badge/*` hit the Worker first.              |
