@@ -72,6 +72,16 @@ try {
       () => true,
       () => false
     );
+  if (!settled) {
+    // Workers AI has a daily free allowance. Once it runs out the model never
+    // answers, so no tool call and no card — a quota state, not a regression.
+    const page_text = await page.locator("body").innerText();
+    if (/AI model is unavailable|daily free allocation|neurons/i.test(page_text)) {
+      console.log("SKIP: Workers AI is out of its daily allowance; chat cannot run.");
+      await browser.close();
+      process.exit(75);
+    }
+  }
   expect(settled, `no finished diagnosis card after ${wait}ms`);
 
   const card = cards.first();
