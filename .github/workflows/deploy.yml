@@ -39,10 +39,14 @@ jobs:
         if: env.CLOUDFLARE_API_TOKEN != ''
         run: |
           set -euo pipefail
-          code=$(curl -sS -o /dev/null -w '%{http_code}' "$SITE/")
+          # A cold Worker plus a real multi-region check can take a while, so every
+          # call gets a generous timeout and one retry before it counts as a failure.
+          get() { curl -sS --max-time 180 --retry 2 --retry-all-errors "$@"; }
+
+          code=$(get -o /dev/null -w '%{http_code}' "$SITE/")
           test "$code" = 200 || { echo "home returned $code"; exit 1; }
 
-          verdict=$(curl -sS --max-time 120 "$SITE/api/v1/check?url=example.com" | jq -r '.verdict // "none"')
+          verdict=$(get "$SITE/api/v1/check?url=example.com" | jq -r '.verdict // "none"')
           echo "example.com -> $verdict"
           case "$verdict" in
             HEALTHY|SLOW|PARTIAL|INCONCLUSIVE) ;;
@@ -50,7 +54,7 @@ jobs:
           esac
 
           # The SSRF guard is the one thing that must never regress in production.
-          guard=$(curl -sS -o /dev/null -w '%{http_code}' "$SITE/api/v1/check?url=http://169.254.169.254")
+          guard=$(get -o /dev/null -w '%{http_code}' "$SITE/api/v1/check?url=http://169.254.169.254")
           test "$guard" = 400 || { echo "guard returned $guard, expected 400"; exit 1; }
 
       - name: Explain the no-op
