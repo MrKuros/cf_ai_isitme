@@ -25,6 +25,7 @@ import {
   type DiagnoseResult,
   type DnsResult,
   type Evidence,
+  type GlobalpingEvidence,
   type ProbeResult,
   type ProviderInfo,
   type ProviderStats,
@@ -58,6 +59,12 @@ const QUICK_CFG = {
 const AUTHNS_CFG = {
   retries: { limit: 1, delay: "1 second" },
   timeout: "20 seconds"
+} satisfies WorkflowStepConfig;
+
+/** Corroboration only: one attempt; `gatherGlobalping` keeps its own ~8 s budget. */
+const GLOBALPING_CFG = {
+  retries: { limit: 0, delay: "1 second" },
+  timeout: "15 seconds"
 } satisfies WorkflowStepConfig;
 
 const EXPLAIN_CFG = {
@@ -136,7 +143,8 @@ export class DiagnoseWorkflow extends AgentWorkflow<
       wantsBrowser,
       previousVerdict,
       voter,
-      expect
+      expect,
+      lang
     } = event.payload;
     const t = this.env.TARGET_DO.getByName(target.host);
     // Durable so a replayed run keeps the same start time.
@@ -214,17 +222,18 @@ export class DiagnoseWorkflow extends AgentWorkflow<
     // One failing resolver is a signal for classify, not a reason to skip the probes.
     const domainFailed = !!dns && !!dnsAlt && !dns.ok && !dnsAlt.ok;
 
-    // 2-4. edge, regions, radar (skipped when the name doesn't resolve)
+    // 2-5. edge, regions, globalping, radar (skipped when the name doesn't resolve)
     let edge: ProbeResult | null = null;
     let regions: RegionProbe[] = [];
+    let globalping: Evidence["globalping"] = null;
     let radar: Evidence["radar"] = null;
     if (domainFailed) {
-      for (const s of ["edge", "regions", "radar"] as const)
+      for (const s of ["edge", "regions", "globalping", "radar"] as const)
         await skip(s, "DNS failed");
     } else {
       // Independent probes: run them side by side so a timing-out target doesn't stack three timeouts.
       let regionsRes: RegionProbe[] | null;
-      [edge, regionsRes, radar] = await Promise.all([
+      [edge, regionsRes, globalping, radar] = await Promise.all([
         probeStep<ProbeResult>(
           "edge",
           () => t.edge(target.url, expect),
@@ -249,6 +258,21 @@ export class DiagnoseWorkflow extends AgentWorkflow<
             };
           },
           HTTP_CFG
+        ),
+        // Outside Cloudflare's network: corroboration only, never a verdict driver.
+        probeStep<GlobalpingEvidence>(
+          "globalping",
+          () => t.globalping(target),
+          (g) => {
+            const ok = g.probes.filter((p) => p.ok).length;
+            return g.skipped
+              ? { status: "skipped", summary: g.skipReason ?? "unavailable" }
+              : {
+                  status: "done",
+                  summary: `${ok}/${g.probes.length} outside probes ok`
+                };
+          },
+          GLOBALPING_CFG
         ),
         probeStep<RadarEvidence>(
           "radar",
@@ -443,7 +467,7 @@ export class DiagnoseWorkflow extends AgentWorkflow<
         : undefined
     ]);
 
-    // 5. browser: the probe may land before or after we get here
+    // 6. browser: the probe may land before or after we get here
     let browser: BrowserProbe | null = null;
     if (!wantsBrowser) {
       await skip("browser", "not requested");
@@ -497,7 +521,7 @@ export class DiagnoseWorkflow extends AgentWorkflow<
       );
     }
 
-    // 6. crowd: record this check, then read the window.
+    // 7. crowd: record this check, then read the window.
     // Only a browser row carries the user's network; an edge row is Cloudflare's vantage.
     const own: Omit<CrowdCheck, "at"> | null = browser
       ? {
@@ -528,7 +552,7 @@ export class DiagnoseWorkflow extends AgentWorkflow<
       })
     );
 
-    // 7. classify
+    // 8. classify
     const evidence: Evidence = {
       target,
       user: publicNetInfo(user),
@@ -538,6 +562,7 @@ export class DiagnoseWorkflow extends AgentWorkflow<
       root,
       alt,
       regions,
+      globalping,
       radar,
       crowd,
       browser,
@@ -578,7 +603,7 @@ export class DiagnoseWorkflow extends AgentWorkflow<
         .catch(() => null);
     }
 
-    // 8. explain
+    // 9. explain
     const explainSkipped =
       trigger === "watch" && classification.verdict === previousVerdict;
     let explanation = "";
@@ -588,7 +613,7 @@ export class DiagnoseWorkflow extends AgentWorkflow<
       explanation =
         (await probeStep<string>(
           "explain",
-          () => explain(this.env, evidence, classification),
+          () => explain(this.env, evidence, classification, { lang }),
           (text) =>
             text
               ? { status: "done", summary: "explained" }
@@ -597,7 +622,7 @@ export class DiagnoseWorkflow extends AgentWorkflow<
         )) ?? "";
     }
 
-    // 9. save + analytics, one durable step so neither repeats on replay
+    // 10. save + analytics, one durable step so neither repeats on replay
     const report = await step.do("save", PROBE_CFG, async () => {
       const finishedAt = Date.now();
       const r: Report = {
@@ -609,6 +634,7 @@ export class DiagnoseWorkflow extends AgentWorkflow<
         evidence: { ...evidence, finishedAt },
         classification,
         explanation,
+        lang,
         extraChecks: []
       };
       await t.saveReport(r, ownerId);

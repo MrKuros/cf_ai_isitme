@@ -1,16 +1,16 @@
 # Prompts
 
-The assignment encourages AI-assisted coding and asks for the prompt history. IsItMe was built in one Claude Code session (Claude Opus) on 2026-09-21. This file has three parts:
+The assignment encourages AI-assisted coding and asks for the prompt history. IsItMe was built in one Claude Code session (Claude Opus) that ran across three days: 2026-09-21, 2026-09-28 and 2026-10-05. This file has three parts:
 
 1. Every prompt I typed, verbatim and in order.
-2. How the AI-assisted build ran: plan mode, research, then three multi-agent workflows (build, competitor research, upgrade), with the key agent prompts summarized.
+2. How the AI-assisted build ran: plan mode, research, then a series of multi-agent workflows (build, competitor research, upgrade, the P3 feature wave, and this ship-everything round), with the key agent prompts summarized.
 3. The prompts the app itself sends to Workers AI at runtime.
 
 ## 1. My prompts (verbatim)
 
-Extracted from the session transcript (`~/.claude/projects/-home-alien-code-cloudflare-assignment/*.jsonl`), and re-extracted after the upgrade workflow. The list leaves out tool results, system reminders, hook output, shell output and agent notifications. Timestamps are UTC. There were no new prompts after #9: the competitor research and the upgrade workflow both came from prompts 8 and 9.
+Extracted from the session transcript (`~/.claude/projects/-home-alien-code-cloudflare-assignment/*.jsonl`), and re-extracted at each later phase. The list leaves out tool results, system reminders, hook output, shell output and agent notifications. Timestamps are UTC. Several phases came from no new prompt of mine at all: the competitor research and the upgrade workflow both ran off prompts 8 and 9, and the deploy-and-document work ran off prompt 23.
 
-### 1.1 Job description and assignment (06:39)
+### 1.1 Job description and assignment (2026-09-21, 06:39)
 
 My first message was the job posting, pasted from the careers page, followed by one sentence of my own. The posting's boilerplate is cut here, as marked. The parts that shaped the project are kept verbatim.
 
@@ -46,6 +46,8 @@ Powered by this is the jd and they wanted an assignment as you can see which is 
 
 ### 1.2 The rest of the conversation
 
+**Day 1 — 2026-09-21: build it**
+
 | #   | Time (UTC) | Prompt                                                                                                                                         |
 | --- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2   | 06:41      | `/plan what kind of agent should we build? I want something unique` (turned on plan mode)                                                      |
@@ -59,6 +61,30 @@ Powered by this is the jd and they wanted an assignment as you can see which is 
 | –   | 07:01      | _(ran `npx wrangler login` myself in the terminal, for Workers AI in local dev)_                                                               |
 | 8   | 07:24      | `also, make sure that this one has the previous features on known "competitors" and add additional stuff on top of it, get it?`                |
 | 9   | 07:26      | `also make sure you don't recreate their bugs, but add things that they don't realise, kinda making this a one stop shop, if that makes sense` |
+| 10  | 10:11      | `where do I do the subdomain thing?`                                                                                                           |
+| 11  | 10:12      | `where?` _(with a screenshot of the Cloudflare dashboard pasted in)_                                                                           |
+| 12  | 10:57      | `create a handoff folder where all future claude sessions can understand the project, do NOT do ultracode for this`                            |
+| 13  | 11:06      | `make a repo named isitme and make it private for now, ofc. don't include the handoff folder`                                                  |
+
+**Day 2 — 2026-09-28: explain it**
+
+| #   | Time (UTC) | Prompt                                                                                                                                                                                                                                       |
+| --- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 14  | 12:41      | `make an obsidian file explaining the architecture of the entire project use ultracode mode if necessary, but I need anyone who reads it to have a good understanding and also keep it concise, not elaborate, just what's necessary but everything covered` |
+| 15  | 12:41      | _(the same again, with one more clause)_ `… keep it in simple terms no jargon`                                                                                                                                                               |
+
+**Day 3 — 2026-10-05: open-source it, document it, ship it**
+
+| #   | Time (UTC) | Prompt                                                                                                                                                                 |
+| --- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 16  | 06:24      | `/plan what else do you think it could be added? also I am not sure if this would be a good business, maybe just opensource it` (turned on plan mode)                   |
+| 17  | 06:46      | `ultracode I also need you to make documentation on how to use it, everything in detail`                                                                               |
+| 18  | 06:47      | `don't do it until I say so, and also you can create another github repo for this, like an open site like how other projects do it, a proper instruction site you know?` |
+| 19  | 06:48      | `just use github open site for this, why do we need cloudflare?`                                                                                                        |
+| 20  | 06:48      | `you can create the entire frontend if you want, either obsidian or a site, no need to limit yourself, people should be able to use it`                                 |
+| 21  | 06:51      | `let the thing finish first then build the plan`                                                                                                                        |
+| 22  | 06:52      | `will the doc-site in same repo create a github page link?`                                                                                                             |
+| 23  | 06:52      | `alright then let's do it`                                                                                                                                              |
 
 ## 2. How the build ran
 
@@ -197,9 +223,49 @@ Phases:
 
 The result: all 19 rules, apart from one R12 case, all P0 and P1 items, and every P2 item except publishing the GitHub Pages copy of the fallback page, with the test suite growing from 196 to 472 tests. The per-item status is in section 4 of `docs/COMPETITOR_SPEC.md`.
 
-## 3. Runtime prompts (Workers AI, `@cf/meta/llama-3.3-70b-instruct-fp8-fast`)
+### 2.6 Live testing, and what only a real browser caught
 
-### Chat system prompt (`src/agents/user-agent.ts`, `systemPrompt()`)
+Prompts 10 and 11 were me asking where the `workers.dev` subdomain lives in the dashboard, and then pasting a screenshot of the page I was on. Remote Workers AI is on even in local dev, so without that subdomain `npm run dev` fails with error 10063 and nothing works.
+
+Once it ran, the main session drove the app in a real headless browser instead of only running unit tests, and that found a set of bugs the 472 passing tests had not:
+
+- **Llama 3.3's streamed tool-call arguments arrived corrupted** through `workers-ai-provider@3` — `{"url": "{"url": "githubgithub.com"}.com"}`. Chat tool-routing moved to `@cf/zai-org/glm-4.7-flash`; Llama 3.3 kept the job it is reliable at, writing the explanations.
+- A garbled chat reply, fixed by giving the `diagnose` tool a `toModelOutput` that hands the model only the verdict, host and confidence.
+- Next steps that read as generic advice, fixed by tying them to the verdict in the prompt.
+- An over-eager Cloudflare self-suspect banner, a false "DoH blocked" hint, and a sparkline spike drawn from a single sample.
+- Later, duplicate failed cards when a tool call was retried, collapsed by `duplicateErrorIds()` in `src/client/format.ts`.
+
+The lesson that stuck: the garbled tool-call bug passed every unit test. Anything involving the model or the browser gets exercised in the real app.
+
+### 2.7 Handoff and repo (prompts 12 and 13)
+
+> `create a handoff folder where all future claude sessions can understand the project, do NOT do ultracode for this`
+
+A plain single-agent task, by request. It produced `handoff/` — status, architecture, decisions, gotchas and history — which is gitignored on purpose, along with a private GitHub repo and an explicit instruction to leave that folder out of it.
+
+### 2.8 Day 2: the architecture note (prompts 14 and 15)
+
+> `… I need anyone who reads it to have a good understanding and also keep it concise, not elaborate, just what's necessary but everything covered keep it in simple terms no jargon`
+
+I sent it twice, 16 seconds apart, the second time with "keep it in simple terms no jargon" appended. The result was a root-level note explaining the whole system in plain language, which later became the "How it works" page of the documentation site rather than a second copy living in the repo root.
+
+### 2.9 Day 3: open source, features, and documentation (prompts 16 to 23)
+
+> `/plan what else do you think it could be added? also I am not sure if this would be a good business, maybe just opensource it`
+
+Plan mode again, and this round decided two things. First, **open source under MIT**: the category is a commodity, and the project is worth more as a credible public repo and a Cloudflare-platform showcase than as a product with a pricing page. Second, a real documentation site — my follow-ups pushed it from "write docs" to "a proper instruction site you know?", then to GitHub Pages rather than another Cloudflare deploy ("just use github open site for this, why do we need cloudflare?"), and then to "you can create the entire frontend if you want … people should be able to use it". "let the thing finish first then build the plan" sequenced it: let the feature workflow land, then plan the docs against the finished feature set, so the examples describe what actually exists.
+
+What ran from those prompts:
+
+- **A feature wave (P3)**: [Globalping](https://globalping.io) probes from outside Cloudflare's network, kept as corroboration only — it adds exactly one descriptive line to the signals, and `test/globalping.test.ts` pins that the verdict, the confidence and the factor breakdown are identical whether its probes all succeed, all fail, or never ran. Plus explanations in the browser's own language, a daily digest, a read-only `/h/:host` page, and the zero-dependency `isitme` CLI. The suite grew from 472 to 525 tests.
+- **The documentation plan**: a VitePress site in the same repo under `docs-site/`, published to GitHub Pages at `mrkuros.github.io/isitme`, with every command and payload in it executed against the running app before publishing.
+- **This run**: the repo's own documents — this file, the README, the LICENSE (the starter's Cloudflare copyright replaced) and CONTRIBUTING — rewritten against the code rather than from memory, with the README screenshot captured from the app running locally.
+
+Two of the runs that were meant to do this work produced nothing at all, because the harness was still in plan mode and no agent could write a file. That is the same failure as the very first build attempt on day 1, which is the kind of thing worth writing down twice.
+
+## 3. Runtime prompts (Workers AI)
+
+### Chat system prompt (`src/agents/user-agent.ts`, `systemPrompt()`, `@cf/zai-org/glm-4.7-flash`)
 
 ```text
 You are IsItMe. You tell people whether a website is down for everyone, down in some regions, or only failing on their own connection.
@@ -207,7 +273,7 @@ Today is <date>.
 
 Rules:
 - When the user names a site or URL to check, call diagnose with it. Don't ask first.
-- After diagnose returns, reply in 1-2 sentences that name the verdict in plain words. A card already shows the steps and explanation, so don't repeat them.
+- After diagnose returns, reply in ONE short sentence that names the verdict in plain words (e.g. "github.com is up everywhere, including from your network."). A card already shows the evidence and explanation: never quote numbers, timings or signals.
 - If diagnose returns ok=false, say briefly why. If the error says the check is still running, say the card will update when it finishes; don't call it a failure.
 - Use watch to monitor a site, unwatch to stop, history for past checks, setWebhook for Slack/Discord alerts, setEmail for email alerts, mute to silence a watch's alerts for a while (maintenance).
 - Never invent probe results. Only state facts that tools returned.
@@ -222,7 +288,7 @@ Recent checks:
 
 Tools: `diagnose({url, expect?})`, `watch({url, everyMinutes, webhookUrl?, email?, expect?, until?})`, `unwatch({hostOrId})`, `history({host?, limit})`, `setWebhook({hostOrId, webhookUrl})`, `setEmail({hostOrId, email})`, `mute({hostOrId, minutes})`. The step limit is `stepCountIs(5)`, and older tool calls are pruned from the context.
 
-### Explanation prompt (`src/lib/explain.ts`)
+### Explanation prompt (`src/lib/explain.ts`, `@cf/meta/llama-3.3-70b-instruct-fp8-fast`)
 
 The system prompt is below. The user message is the compact evidence JSON: the verdict, its subtype, signals, factors and hints, plus per-vantage evidence, with error strings, CNAMEs, timestamps and city removed, `Location` headers cut down to their host, and vendor status-page text capped. The reply then goes through `filterUngrounded`, which drops any sentence or bullet that names a provider missing from the evidence (R13). If Workers AI fails, a templated explanation per verdict and subtype is used instead.
 
@@ -254,5 +320,12 @@ Rules:
 - Use only facts present in the JSON. Never invent numbers, locations, causes or status codes.
 - For the browser vantage say "your browser could reach it" or "your browser could not reach it", never "it returned 200".
 - Write 2 to 4 plain sentences addressed to the user, then a "Next steps" list of 2 or 3 short, concrete bullets.
+- Next steps must fit the verdict. HEALTHY with the browser reaching it means the network path is fine: suggest page-level fixes (hard refresh, private window, clear site data, another browser), never router restarts or calling the ISP. Only suggest network or ISP steps for LIKELY_YOUR_NETWORK or ISP_OUTAGE. For site-side verdicts say there is nothing to fix locally.
 - Markdown only, under 120 words total, no headings, no preamble.
+```
+
+When the browser asked for a language other than English (`Accept-Language` on connect, or the `setLang` call), one more rule is appended to that system prompt:
+
+```text
+- Write the whole answer, including the next steps, in <Language> (<tag>). Keep every hostname, status code and number exactly as it appears in the JSON.
 ```

@@ -1,0 +1,293 @@
+/*
+ * The app's own skin, applied to VitePress's default theme.
+ * Colours and type are sampled from `src/client/styles.css` and `index.html`.
+ */
+/* Geist is loaded by the <link> tags in .vitepress/config.ts, as index.html does. */
+
+:root {
+  --vp-font-family-base: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --vp-font-family-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Cloudflare orange: the app's --brand-me. */
+  --vp-c-brand-1: #c2560d;
+  --vp-c-brand-2: #f6821f;
+  --vp-c-brand-3: #f6821f;
+  --vp-c-brand-soft: rgb(246 130 31 / 14%);
+
+  --vp-button-brand-bg: #f6821f;
+  --vp-button-brand-hover-bg: #e0730f;
+  --vp-button-brand-active-bg: #c2560d;
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: #1c1917;
+  --vp-button-brand-hover-text: #1c1917;
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(78deg, #f6821f, #be185d);
+
+  /* Verdict tones: one hue per "whose problem is it". */
+  --tone-good: #15803d;
+  --tone-warn: #b45309;
+  --tone-bad: #dc2626;
+  --tone-you: #2563eb;
+  --tone-dns: #be185d;
+  --tone-idle: #a1a1aa;
+}
+
+.dark {
+  --vp-c-brand-1: #fb9a43;
+  --vp-c-brand-2: #f6821f;
+  --vp-c-brand-3: #f6821f;
+  --vp-c-brand-soft: rgb(251 154 67 / 16%);
+  --vp-home-hero-name-background: linear-gradient(78deg, #fb9a43, #f472b6);
+
+  --tone-good: #4ade80;
+  --tone-warn: #fbbf24;
+  --tone-bad: #f87171;
+  --tone-you: #60a5fa;
+  --tone-dns: #f472b6;
+  --tone-idle: #71717a;
+}
+
+body {
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.VPHero .name,
+.VPHero .text {
+  letter-spacing: -0.02em;
+}
+
+.vp-doc h2 {
+  border-top-color: var(--vp-c-divider);
+}
+
+/* ── Tones ───────────────────────────────────────────────────────── */
+
+.tone-good {
+  --tone: var(--tone-good);
+}
+.tone-warn {
+  --tone: var(--tone-warn);
+}
+.tone-bad {
+  --tone: var(--tone-bad);
+}
+.tone-you {
+  --tone: var(--tone-you);
+}
+.tone-dns {
+  --tone: var(--tone-dns);
+}
+.tone-idle {
+  --tone: var(--tone-idle);
+}
+
+.tone-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--tone, var(--tone-idle));
+}
+
+/* ── Verdict chip ────────────────────────────────────────────────── */
+
+.verdict-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+  color: var(--tone);
+  background: color-mix(in oklab, var(--tone) 11%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tone) 30%, transparent);
+}
+.verdict-chip .sub {
+  font-weight: 400;
+  opacity: 0.75;
+}
+.verdict-chip .conf {
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+/* ── Result card (mirrors src/client/components/DiagnosisCard.tsx) ── */
+
+.result-card {
+  overflow: hidden;
+  border: 1px solid var(--vp-c-divider);
+  /* The coloured top rule shows whose problem it is at a glance. */
+  border-top: 3px solid var(--tone, var(--tone-idle));
+  border-radius: 16px;
+  background: var(--vp-c-bg);
+  box-shadow: var(--vp-shadow-2);
+  text-align: left;
+}
+.result-card header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 16px 18px 4px;
+}
+.result-card .host {
+  font-family: var(--vp-font-family-mono);
+  font-size: 14px;
+  font-weight: 600;
+}
+.result-card .elapsed {
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  color: var(--vp-c-text-3);
+}
+.result-card header .chip {
+  margin-left: auto;
+}
+.result-card .body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 18px 18px;
+}
+.result-card .headline {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  color: var(--tone);
+}
+.result-card .signals {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.result-card .signals li {
+  display: flex;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--vp-c-text-1);
+}
+.result-card .signals .tone-dot {
+  margin-top: 7px;
+}
+.result-card .explain {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--vp-c-bg-soft);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.result-card .tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+.result-card .tools a,
+.result-card .tools span.btn {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--vp-c-divider);
+  color: var(--vp-c-text-2);
+  text-decoration: none;
+}
+.result-card .tools a:hover {
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
+}
+.result-card .note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--vp-c-text-3);
+}
+
+/* The hero image slot is sized for a logo; a card needs its own box. */
+.VPHero .image-container {
+  width: 100%;
+  max-width: 440px;
+  height: auto;
+  transform: none;
+}
+.VPHero .image-bg {
+  display: none;
+}
+/* Stacked, the default margins pull the name up over the card. */
+@media (max-width: 959px) {
+  .VPHero .image {
+    margin: 0 0 32px;
+  }
+}
+
+/* ── TryIt ───────────────────────────────────────────────────────── */
+
+.tryit {
+  margin: 24px 0;
+}
+.tryit form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tryit input {
+  flex: 1 1 14rem;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 10px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font-family: var(--vp-font-family-mono);
+  font-size: 14px;
+}
+.tryit input:focus {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: -1px;
+}
+.tryit button {
+  padding: 8px 18px;
+  border-radius: 10px;
+  border: 0;
+  background: var(--vp-button-brand-bg);
+  color: var(--vp-button-brand-text);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+.tryit button:hover:not(:disabled) {
+  background: var(--vp-button-brand-hover-bg);
+}
+.tryit button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.tryit .out {
+  margin-top: 16px;
+}
+.tryit .fallback {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--vp-c-text-3);
+}
+
+/* Mermaid diagrams keep the page's background, not the library's white. */
+.mermaid {
+  margin: 24px 0;
+  text-align: center;
+}

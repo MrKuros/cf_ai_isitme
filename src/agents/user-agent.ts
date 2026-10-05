@@ -36,6 +36,8 @@ import {
   WATCH_IDLE_MS
 } from "../lib/alerts";
 import { uptime } from "../lib/uptime";
+import { buildDigest, type DigestWatchInput } from "../lib/digest";
+import { LANGS, pickLang } from "../lib/lang";
 import { EmailMessage } from "cloudflare:email";
 import {
   INITIAL_AGENT_STATE,
@@ -51,6 +53,7 @@ import {
   type DiagnoseParams,
   type DiagnoseProgress,
   type DiagnoseResult,
+  type Evidence,
   type ExportBundle,
   type ExtraCheck,
   type NetInfo,
@@ -83,6 +86,7 @@ interface StartOptions {
   wantsBrowser: boolean;
   voter?: string;
   expect?: string;
+  lang?: string;
 }
 
 // Covers the workflow's worst case: parallel probes + browser wait + explain with one retry.
@@ -201,7 +205,11 @@ export class UserAgent extends AIChatAgent<Env, AgentState> {
     this.setState({
       ...this.state,
       user: netInfo(ctx.request),
-      origin: new URL(ctx.request.url).origin
+      origin: new URL(ctx.request.url).origin,
+      // Kept once set: a later connect must not undo the user's pick.
+      lang:
+        this.state.lang ??
+        pickLang(ctx.request.headers.get("accept-language") ?? undefined)
     });
     await this.ctx.storage.put("lastSeenAt", Date.now());
     if (this.state.watches.length)
@@ -538,23 +546,28 @@ ${recent || "none"}`;
     if (!watch) return null;
     const d = Math.min(Math.max(1, Math.floor(Number(days) || 7)), 30);
     const since = Date.now() - d * DAY_MS;
+    return uptime(this.watchRows(watch.host, since), watchId, d);
+  }
+
+  /** Watch runs for a host since `since`, newest first. Shared by getUptime and the digest. */
+  private watchRows(
+    host: string,
+    since: number
+  ): Array<{ verdict: Verdict; evidence?: Evidence }> {
     const rows = this.sql<{ verdict: string; json: string }>`
       SELECT verdict, json FROM reports
-      WHERE host = ${watch.host} AND trigger = 'watch' AND created_at >= ${since}`;
-    return uptime(
-      rows.map((r) => {
-        try {
-          return {
-            verdict: r.verdict as Verdict,
-            evidence: (JSON.parse(r.json) as Report).evidence
-          };
-        } catch {
-          return { verdict: r.verdict as Verdict };
-        }
-      }),
-      watchId,
-      d
-    );
+      WHERE host = ${host} AND trigger = 'watch' AND created_at >= ${since}
+      ORDER BY created_at DESC`;
+    return rows.map((r) => {
+      try {
+        return {
+          verdict: r.verdict as Verdict,
+          evidence: (JSON.parse(r.json) as Report).evidence
+        };
+      } catch {
+        return { verdict: r.verdict as Verdict };
+      }
+    });
   }
 
   @callable()
@@ -579,6 +592,15 @@ ${recent || "none"}`;
     return { exportedAt: Date.now(), watches, alerts, history };
   }
 
+  /** Overrides the Accept-Language guess; only the explanation is translated, verdicts stay English. */
+  @callable()
+  async setLang(lang: string): Promise<{ ok: boolean; lang: string }> {
+    if (!LANGS.includes(lang))
+      return { ok: false, lang: this.state.lang ?? "en" };
+    this.setState({ ...this.state, lang });
+    return { ok: true, lang };
+  }
+
   @callable()
   async markAlertsRead(): Promise<void> {
     this.setState({
@@ -594,7 +616,7 @@ ${recent || "none"}`;
     input: string,
     user: NetInfo,
     trigger: "api" | "mcp",
-    opts: { expect?: string } = {}
+    opts: { expect?: string; lang?: string } = {}
   ): Promise<CheckOutcome> {
     const started = await this.startCheck(input, user, trigger, opts);
     if (!started.ok) return started;
@@ -606,7 +628,7 @@ ${recent || "none"}`;
     input: string,
     user: NetInfo,
     trigger: "api" | "mcp",
-    opts: { expect?: string } = {}
+    opts: { expect?: string; lang?: string } = {}
   ): Promise<
     | { ok: true; runId: string; host: string }
     | { ok: false; host?: string; error: string }
@@ -616,7 +638,8 @@ ${recent || "none"}`;
     try {
       const runId = await this.startRun(target, user, trigger, {
         wantsBrowser: false,
-        expect: opts.expect
+        expect: opts.expect,
+        lang: opts.lang
       });
       return { ok: true, runId, host: target.host };
     } catch (e) {
@@ -681,6 +704,7 @@ ${recent || "none"}`;
       await this.removeWatch(watch.id);
       return;
     }
+    await this.ensureDigest();
     // A run whose terminal callback was lost must not block the watch forever.
     this.failStaleRuns();
     const busy = this.state.runs.some(
@@ -695,6 +719,55 @@ ${recent || "none"}`;
       wantsBrowser: false,
       expect: watch.expect
     });
+  }
+
+  /**
+   * One daily summary per destination: uptime, incidents, slowest site. Never probes and never
+   * an alert, so mutes, incident state and lastVerdict are untouched.
+   */
+  async dailyDigest(): Promise<void> {
+    const now = Date.now();
+    const since = now - DAY_MS;
+    const { watches, alerts } = this.state;
+    const rows = watches.map((w) => ({
+      watch: w,
+      input: {
+        watchId: w.id,
+        host: w.host,
+        rows: this.watchRows(w.host, since),
+        incidents: alerts.filter(
+          (a) => a.watchId === w.id && a.kind === "down" && a.at >= since
+        ).length
+      }
+    }));
+    this.setState({ ...this.state, lastDigestAt: now });
+    // Destinations are per watch, so a digest covers only the watches that named it:
+    // one summary per destination, over that destination's watches alone.
+    const digests = (pick: (w: Watch) => string | undefined) => {
+      const by = new Map<string, DigestWatchInput[]>();
+      for (const { watch, input } of rows) {
+        const to = pick(watch);
+        if (to) by.set(to, [...(by.get(to) ?? []), input]);
+      }
+      return [...by].flatMap(([to, inputs]) => {
+        const built = buildDigest(inputs, now);
+        return built ? [{ to, built }] : [];
+      });
+    };
+    for (const { to, built } of digests((w) => w.email)) {
+      const n = built.summary.watches.length;
+      await this.emailAlert(
+        to,
+        `IsItMe digest: ${n} site${n === 1 ? "" : "s"}`,
+        `${built.text}\n`
+      );
+    }
+    for (const { to, built } of digests((w) => w.webhookUrl))
+      await this.postWebhook(to, built.text, {
+        kind: "digest",
+        at: now,
+        hours: built.summary.hours
+      });
   }
 
   // ── Workflow callbacks ──
@@ -851,9 +924,27 @@ ${recent || "none"}`;
     )
       await this.removeWatch(watch.id);
     if (!alert || !watch) return;
-    if (watch.email) await this.emailAlert(watch.email, alert, reportPath);
+    const change =
+      alert.kind === "recovered" ? "is back up" : `is DOWN (${alert.to})`;
+    const reportUrl = (this.state.origin ?? "") + reportPath;
+    if (watch.email)
+      await this.emailAlert(
+        watch.email,
+        `IsItMe: ${alert.host} ${change}`,
+        `${alert.host} ${change}.\n\n${alert.summary}\n\nReport: ${reportUrl}\n`
+      );
     if (watch.webhookUrl) {
-      const sent = await this.postWebhook(watch.webhookUrl, alert, reportPath);
+      const sent = await this.postWebhook(
+        watch.webhookUrl,
+        `IsItMe: ${alert.host} ${change}. ${alert.summary} ${reportUrl}`,
+        {
+          host: alert.host,
+          kind: alert.kind ?? null,
+          from: alert.from ?? null,
+          to: alert.to,
+          reportUrl
+        }
+      );
       const done: Alert = { ...alert, webhook: sent ? "sent" : "failed" };
       alert = done;
       this.setState({
@@ -959,7 +1050,8 @@ ${recent || "none"}`;
       watchId: opts.watchId,
       voter: opts.voter,
       previousVerdict: opts.previousVerdict,
-      expect: opts.expect
+      expect: opts.expect,
+      lang: opts.lang ?? this.state.lang ?? undefined
     };
     try {
       await this.runWorkflow("DIAGNOSE_WORKFLOW", params, {
@@ -1070,6 +1162,7 @@ ${recent || "none"}`;
       createdAt: Date.now()
     };
     this.setState({ ...this.state, watches: [...this.state.watches, watch] });
+    await this.ensureDigest();
     return watch;
   }
 
@@ -1090,10 +1183,25 @@ ${recent || "none"}`;
       watches: this.state.watches.filter((w) => w.id !== watchId)
     });
     await this.cancelSchedule(watch.scheduleId);
+    if (!this.state.watches.length) await this.stopDigest();
     await this.env.TRENDS_DO.getByName("global")
       .releaseWatch(this.claimId(watchId))
       .catch(() => {});
     return true;
+  }
+
+  /** Exactly one daily digest schedule lives as long as a watch does; the id survives restarts in state. */
+  private async ensureDigest() {
+    if (this.state.digestScheduleId || !this.state.watches.length) return;
+    const s = await this.scheduleEvery(DAY_MS / 1000, "dailyDigest");
+    this.setState({ ...this.state, digestScheduleId: s.id });
+  }
+
+  private async stopDigest() {
+    const id = this.state.digestScheduleId;
+    if (!id) return;
+    this.setState({ ...this.state, digestScheduleId: null });
+    await this.cancelSchedule(id);
   }
 
   private listReports(host?: string | null, limit = 10): ReportSummary[] {
@@ -1114,63 +1222,36 @@ ${recent || "none"}`;
   }
 
   /** Never throws. Cloudflare delivers only to verified destination addresses; local dev just logs it. */
-  private async emailAlert(to: string, alert: Alert, reportPath: string) {
+  private async emailAlert(to: string, subject: string, body: string) {
     if (!this.env.EMAIL) return;
     const from =
       (this.env as Env & { EMAIL_FROM?: string }).EMAIL_FROM || ALERT_FROM;
-    const change =
-      alert.kind === "recovered" ? "is back up" : `is DOWN (${alert.to})`;
-    const reportUrl = (this.state.origin ?? "") + reportPath;
     try {
       await this.env.EMAIL.send(
-        new EmailMessage(
-          from,
-          to,
-          alertEmailRaw(
-            from,
-            to,
-            `IsItMe: ${alert.host} ${change}`,
-            `${alert.host} ${change}.\n\n${alert.summary}\n\nReport: ${reportUrl}\n`
-          )
-        )
+        new EmailMessage(from, to, alertEmailRaw(from, to, subject, body))
       );
     } catch (e) {
-      console.warn(`[email] ${alert.host}: ${(e as Error).message}`);
+      console.warn(`[email] ${(e as Error).message}`);
     }
   }
 
   private async postWebhook(
     url: string,
-    alert: Alert,
-    reportPath: string
+    message: string,
+    payload: Record<string, unknown>
   ): Promise<boolean> {
     // Checked once at watch creation isn't enough: the host's DNS can move to a private address later.
     const v = await validateWebhook(url);
     if ("error" in v) {
-      console.warn(`[webhook] refused ${alert.host}: ${v.error}`);
+      console.warn(`[webhook] refused: ${v.error}`);
       return false;
     }
-    const reportUrl = (this.state.origin ?? "") + reportPath;
-    const change =
-      alert.kind === "recovered" ? "is back up" : `is DOWN (${alert.to})`;
-    const text =
-      `IsItMe: ${alert.host} ${change}. ${escapeSlack(alert.summary)} ${reportUrl}`.slice(
-        0,
-        1900
-      );
+    const text = escapeSlack(message).slice(0, 1900);
     try {
       const res = await fetch(v.url, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          text,
-          content: text,
-          host: alert.host,
-          kind: alert.kind ?? null,
-          from: alert.from ?? null,
-          to: alert.to,
-          reportUrl
-        }),
+        body: JSON.stringify({ text, content: text, ...payload }),
         redirect: "manual",
         signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS)
       });

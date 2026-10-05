@@ -37,7 +37,7 @@ const DOH = {
   google: "https://dns.google/resolve"
 };
 const TRACE = "https://www.cloudflare.com/cdn-cgi/trace";
-const USER_AGENT = "IsItMe/1.0 (+https://github.com/cf_ai_isitme)";
+const USER_AGENT = "IsItMe/1.0 (+https://github.com/MrKuros/isitme)";
 const MAX_BODY = 65536;
 const PROVIDER_HEADERS = [
   "x-amz-cf-id",

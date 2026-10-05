@@ -74,9 +74,9 @@ export default function TrendingPage() {
                     <tr key={t.host}>
                       <td className="py-2.5 pr-3">
                         <a
-                          href={`/?q=${encodeURIComponent(t.host)}`}
+                          href={`/h/${encodeURIComponent(t.host)}`}
                           className="font-mono text-[13px] break-all text-kumo-link"
-                          title={`Check ${t.host} now`}
+                          title={`24h history for ${t.host}`}
                         >
                           {t.host}
                         </a>

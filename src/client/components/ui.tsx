@@ -26,6 +26,7 @@ import type {
 import {
   SUBTYPE_LABEL,
   crowdBuckets,
+  globalpingLabel,
   groupByColo,
   hostOf,
   probesOkOf,
@@ -283,7 +284,7 @@ function Row({
   );
 }
 
-const mono = "font-mono text-[13px]";
+const mono = "font-mono text-[13px] break-words";
 
 export function browserLine(b: BrowserProbe): string {
   if (!b.online) return "Browser reported it was offline";
@@ -427,6 +428,82 @@ function RdapRow({ rdap }: { rdap: NonNullable<Evidence["rdap"]> }) {
   );
 }
 
+/**
+ * Probes from outside Cloudflare's network (globalping.io). Corroboration only:
+ * they never enter the colo quorum and never move the verdict or confidence.
+ */
+function GlobalpingRow({ g }: { g: Evidence["globalping"] }) {
+  const probes = g?.probes ?? [];
+  const okCount = probes.filter((p) => p.ok).length;
+  const shown = probes.slice(0, 8);
+  return (
+    <Row
+      name="Outside probes"
+      ok={
+        probes.length === 0
+          ? null
+          : okCount === probes.length
+            ? true
+            : okCount === 0
+              ? false
+              : null
+      }
+    >
+      {!g || g.skipped || probes.length === 0 ? (
+        <span className="text-kumo-subtle">
+          {!g ? "Not run" : `Skipped${g.skipReason ? `: ${g.skipReason}` : ""}`}
+        </span>
+      ) : (
+        <div>
+          <div>
+            {okCount}/{probes.length} probes reached it
+            <span className="text-kumo-subtle">
+              {" "}
+              · external network, outside Cloudflare
+            </span>
+          </div>
+          {shown.map((p, i) => (
+            <div key={i} className={`${mono} mt-0.5`}>
+              <span className={`${p.ok ? "tone-good" : "tone-bad"} tone-text`}>
+                {p.ok
+                  ? `${p.ms ?? "?"}ms${p.status ? ` · HTTP ${p.status}` : ""}`
+                  : (p.error ?? "failed").slice(0, 80)}
+              </span>
+              <span className="text-kumo-subtle"> {globalpingLabel(p)}</span>
+              {p.hops && p.hops.length > 0 && (
+                <details className="font-sans">
+                  <summary className="cursor-pointer text-xs text-kumo-subtle">
+                    {p.hops.length} traceroute hop
+                    {p.hops.length === 1 ? "" : "s"}
+                  </summary>
+                  <ol className={`${mono} text-xs break-all text-kumo-subtle`}>
+                    {p.hops.map((h) => (
+                      <li key={h.hop}>
+                        {h.hop}. {h.host ?? "*"}
+                        {h.ms !== undefined ? ` · ${h.ms}ms` : ""}
+                      </li>
+                    ))}
+                  </ol>
+                </details>
+              )}
+            </div>
+          ))}
+          {probes.length > shown.length && (
+            <div className="text-xs text-kumo-subtle">
+              +{probes.length - shown.length} more
+            </div>
+          )}
+          <div className="text-xs text-kumo-subtle">
+            Corroboration only: these never change the verdict.
+            {g.errors.length > 0 &&
+              ` · ${g.errors.length} call${g.errors.length === 1 ? "" : "s"} failed`}
+          </div>
+        </div>
+      )}
+    </Row>
+  );
+}
+
 function dohStatus(d: DnsResult | null | undefined): string {
   return !d
     ? "not run"
@@ -448,8 +525,6 @@ export function EvidenceGrid({
   const rx = radarEvents(evidence);
   const dnsAlt = evidence.dnsAlt ?? null;
   const disagree = resolversDisagree(dns, dnsAlt);
-  const shownAsn = crowd ? crowdBuckets(crowd.byAsn) : [];
-  const shownCountry = crowd ? crowdBuckets(crowd.byCountry) : [];
   return (
     <div className="divide-y divide-kumo-line">
       <Row name="Your browser" ok={browser ? browser.reachable : null}>
@@ -553,6 +628,7 @@ export function EvidenceGrid({
           <span className="text-kumo-subtle">Skipped</span>
         )}
       </Row>
+      <GlobalpingRow g={evidence.globalping} />
       {evidence.provider && (
         <Row
           name="Hosting provider"
@@ -657,31 +733,7 @@ export function EvidenceGrid({
         name="Crowd"
         ok={crowd && crowd.total ? crowd.failing / crowd.total < 0.5 : null}
       >
-        {crowd && crowd.total ? (
-          <span>
-            {crowd.failing}/{crowd.total} recent checks failing
-            <span className="text-kumo-subtle">
-              {" "}
-              · last {crowd.windowMinutes} min
-            </span>
-            <CrowdTable
-              rows={[
-                ...shownAsn.map((b) => ({
-                  ...b,
-                  key: `a${b.asn}`,
-                  name: `AS${b.asn}${b.asName ? ` ${b.asName}` : ""}`
-                })),
-                ...shownCountry.map((b) => ({
-                  ...b,
-                  key: `c${b.country}`,
-                  name: b.country
-                }))
-              ]}
-            />
-          </span>
-        ) : (
-          <span className="text-kumo-subtle">No other recent checks</span>
-        )}
+        <CrowdSummary crowd={crowd} />
       </Row>
     </div>
   );
@@ -710,9 +762,9 @@ export function RegionChips({ regions }: { regions: Evidence["regions"] }) {
                   `${x.region}: ${x.ok ? `HTTP ${x.status ?? "?"}` : (x.error ?? x.errorClass ?? "failed")}`
               )
               .join("\n")}
-            className={`${failed ? "tone-bad" : "tone-good"} tone-soft inline-flex items-baseline gap-1 rounded-md px-1.5 py-0.5 font-mono text-xs`}
+            className={`${failed ? "tone-bad" : "tone-good"} tone-soft inline-flex max-w-full flex-wrap items-baseline gap-1 rounded-md px-1.5 py-0.5 font-mono text-xs`}
           >
-            <span className="text-kumo-default">
+            <span className="text-kumo-default break-all">
               {g.map((x) => x.region).join(",")}
             </span>
             {r.colo && <span className="text-kumo-subtle">→ {r.colo}</span>}
@@ -825,6 +877,36 @@ function StatusRow({
         )}
       </span>
     </Row>
+  );
+}
+
+/** Crowd counts plus the per-ASN/country heatmap. Also used by the per-host page. */
+export function CrowdSummary({ crowd }: { crowd: Evidence["crowd"] }) {
+  if (!crowd?.total) {
+    return <span className="text-kumo-subtle">No other recent checks</span>;
+  }
+  return (
+    <span>
+      {crowd.failing}/{crowd.total} recent checks failing
+      <span className="text-kumo-subtle">
+        {" "}
+        · last {crowd.windowMinutes} min
+      </span>
+      <CrowdTable
+        rows={[
+          ...crowdBuckets(crowd.byAsn).map((b) => ({
+            ...b,
+            key: `a${b.asn}`,
+            name: `AS${b.asn}${b.asName ? ` ${b.asName}` : ""}`
+          })),
+          ...crowdBuckets(crowd.byCountry).map((b) => ({
+            ...b,
+            key: `c${b.country}`,
+            name: b.country
+          }))
+        ]}
+      />
+    </span>
   );
 }
 

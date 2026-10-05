@@ -186,6 +186,49 @@ export interface RadarEvidence {
   errors: string[];
 }
 
+// ── Globalping (corroboration only, never a verdict driver) ─────────
+
+/** One traceroute hop, when the traceroute measurement ran. */
+export interface GlobalpingHop {
+  /** 1-based distance from the probe. */
+  hop: number;
+  host?: string;
+  ms?: number;
+}
+
+/** One Globalping probe's result. Location fields are whatever the probe reported. */
+export interface GlobalpingProbe {
+  continent?: string;
+  country?: string;
+  city?: string;
+  asn?: number;
+  /** The probe's network/AS name. */
+  network?: string;
+  /** The measurement reached the target from this probe. */
+  ok: boolean;
+  /** Round-trip / response time in ms, when measured. */
+  ms?: number;
+  /** HTTP status, for an http measurement. */
+  status?: number;
+  error?: string;
+  hops?: GlobalpingHop[];
+}
+
+/**
+ * Independent probes from outside Cloudflare's network (globalping.io).
+ * **Corroboration only**: it never enters the colo quorum (R6/R7) and never changes a verdict.
+ */
+export interface GlobalpingEvidence {
+  /** True when the step was disabled, rate-limited, or every call failed. */
+  skipped: boolean;
+  skipReason?: string;
+  probes: GlobalpingProbe[];
+  /** Globalping measurement id, for the report link. */
+  measurementId?: string;
+  /** Per-call failures that did not skip the whole step. */
+  errors: string[];
+}
+
 // ── Provider & status pages (N1, N2, R18) ───────────────────────────
 
 export interface ProviderInfo {
@@ -317,6 +360,8 @@ export interface Evidence {
   statusPage?: StatusPageInfo | null;
   /** cloudflarestatus.com summary (R18). */
   cfStatus?: StatusPageInfo | null;
+  /** Probes from outside Cloudflare (globalping.io). Corroboration only; never a verdict driver. */
+  globalping?: GlobalpingEvidence | null;
   /** Keyword the page must contain (R4). */
   expect?: string;
   /** Per-colo latency baseline from TargetDO samples (P2). */
@@ -406,6 +451,7 @@ export type StepName =
   | "dns"
   | "edge"
   | "regions"
+  | "globalping"
   | "radar"
   | "provider"
   | "status"
@@ -418,6 +464,7 @@ export const STEP_ORDER: StepName[] = [
   "dns",
   "edge",
   "regions",
+  "globalping",
   "radar",
   "provider",
   "status",
@@ -481,6 +528,8 @@ export interface Report {
   classification: Classification;
   /** LLM explanation (template fallback when the LLM fails); "" only when skipped (unchanged watch verdict). */
   explanation: string;
+  /** Language `explanation` was written in (BCP-47 primary tag). Absent = "en". */
+  lang?: string;
   extraChecks: ExtraCheck[];
 }
 
@@ -560,6 +609,24 @@ export interface UptimeStats {
   uptime: number | null;
 }
 
+/** One daily digest over a device's watches (P3). Built from the same rows as `UptimeStats`. */
+export interface DigestSummary {
+  /** When the digest was built. */
+  at: number;
+  /** Window covered, ending at `at`. */
+  hours: number;
+  watches: Array<{
+    watchId: string;
+    host: string;
+    /** Verdict of the last run in the window. */
+    verdict?: Verdict;
+    /** Confirmed down alerts in the window. */
+    incidents: number;
+    /** `UptimeStats.uptime` over the window; null with no counted runs. */
+    uptime: number | null;
+  }>;
+}
+
 export interface Alert {
   id: string;
   watchId: string;
@@ -588,6 +655,12 @@ export interface AgentState {
   alerts: Alert[];
   /** Newest first, capped at 50. Full reports live in SQL + TargetDO. */
   history: ReportSummary[];
+  /** BCP-47 primary tag for explanations, from `pickLang` or the user's picker. null = "en". */
+  lang: string | null;
+  /** `scheduleEvery` id of the daily digest, or null when the digest is off. */
+  digestScheduleId: string | null;
+  /** Epoch ms of the last digest sent. */
+  lastDigestAt?: number;
 }
 
 export const INITIAL_AGENT_STATE: AgentState = {
@@ -596,7 +669,9 @@ export const INITIAL_AGENT_STATE: AgentState = {
   runs: [],
   watches: [],
   alerts: [],
-  history: []
+  history: [],
+  lang: null,
+  digestScheduleId: null
 };
 
 // ── Workflow ─────────────────────────────────────────────────────────
@@ -615,6 +690,8 @@ export interface DiagnoseParams {
   /** For watch runs: explain is skipped when the new verdict equals this. */
   previousVerdict?: Verdict;
   expect?: string;
+  /** BCP-47 primary tag for the explanation. Absent = "en". */
+  lang?: string;
 }
 
 /** Payload of every `reportProgress` call. */

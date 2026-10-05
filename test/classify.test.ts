@@ -1240,9 +1240,15 @@ describe("classify: P1 evidence (N1, N2, N4, N7, N8, R9, R18)", () => {
     const minor = page("minor", "https://www.cloudflarestatus.com/");
     expect(classify(ev({ cfStatus: minor })).selfSuspect).toBeUndefined();
     // A colo we probed from (edge ran in SJC) is relevant; one we didn't touch is not.
-    const probed = { ...minor, componentsDown: ["San Jose, CA, United States - (SJC)"] };
+    const probed = {
+      ...minor,
+      componentsDown: ["San Jose, CA, United States - (SJC)"]
+    };
     expect(classify(ev({ cfStatus: probed })).selfSuspect?.length).toBe(1);
-    const elsewhere = { ...minor, componentsDown: ["Frankfurt, Germany - (FRA)"] };
+    const elsewhere = {
+      ...minor,
+      componentsDown: ["Frankfurt, Germany - (FRA)"]
+    };
     expect(classify(ev({ cfStatus: elsewhere })).selfSuspect).toBeUndefined();
   });
 
@@ -1329,15 +1335,38 @@ describe("classify: P1 evidence (N1, N2, N4, N7, N8, R9, R18)", () => {
   });
 
   it("hints: DoH blocked only when the browser got no DoH answer, not on NXDOMAIN", () => {
-    const answer = (rcode: number) => ({ ...dnsOk, ok: false, rcode, addresses: [] });
+    const answer = (rcode: number) => ({
+      ...dnsOk,
+      ok: false,
+      rcode,
+      addresses: []
+    });
     const nx = classify(
-      ev({ browser: { ...browserFail, controlReachable: true, dns: answer(3), dnsAlt: answer(3) } })
+      ev({
+        browser: {
+          ...browserFail,
+          controlReachable: true,
+          dns: answer(3),
+          dnsAlt: answer(3)
+        }
+      })
     );
-    expect(nx.hints ?? []).not.toContainEqual(expect.stringMatching(/DNS-over-HTTPS/));
+    expect(nx.hints ?? []).not.toContainEqual(
+      expect.stringMatching(/DNS-over-HTTPS/)
+    );
     const blocked = classify(
-      ev({ browser: { ...browserFail, controlReachable: true, dns: answer(-1), dnsAlt: answer(-1) } })
+      ev({
+        browser: {
+          ...browserFail,
+          controlReachable: true,
+          dns: answer(-1),
+          dnsAlt: answer(-1)
+        }
+      })
     );
-    expect(blocked.hints).toContainEqual(expect.stringMatching(/DNS-over-HTTPS/));
+    expect(blocked.hints).toContainEqual(
+      expect.stringMatching(/DNS-over-HTTPS/)
+    );
   });
 
   it("hints: WARP, Private Relay, IPv6 path, unreachable AAAA; never change the verdict", () => {

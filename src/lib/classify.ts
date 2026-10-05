@@ -435,7 +435,17 @@ export function classify(evidence: Evidence): Classification {
     lag?.vendorAckAt !== undefined && lag.vendorAckAt >= lag.firstFailureAt
       ? Math.round((lag.vendorAckAt - lag.firstFailureAt) / 60_000)
       : undefined;
+  // Globalping is corroboration only (THE RULE): a descriptive line, never a factor.
+  const gp = evidence.globalping;
+  const gpProbes = gp && !gp.skipped ? gp.probes : [];
+  const gpFailed = gpProbes.filter((p) => !p.ok).length;
+  const gpLine = !gpProbes.length
+    ? ""
+    : gpFailed === 0
+      ? `All ${gpProbes.length} outside probes reached it`
+      : `${gpFailed} of ${gpProbes.length} outside probes couldn't reach it`;
   const tail = [
+    gpLine,
     evidence.edge && !edge ? "Cloudflare's edge: no data" : "",
     ...noDataRegions.map((r) => `${r.region}: no data`),
     alt?.probe?.ok ? `${alt.host} works` : "",

@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { dohLookup, egressColo, guardUrl, httpProbe } from "../lib/probes";
 import { baselineOf, statusLagOf } from "../lib/history";
+import { gatherGlobalping } from "../lib/globalping";
 import { gatherRadar } from "../lib/radar";
 import { DAY_MS, expireBefore } from "../lib/retention";
 import {
@@ -22,6 +23,7 @@ import {
   type DnsResult,
   type Evidence,
   type ExtraCheck,
+  type GlobalpingEvidence,
   type HostHistory,
   type ProbeResult,
   type RadarEvidence,
@@ -29,6 +31,7 @@ import {
   type RegionProbe,
   type Report,
   type StatusPageInfo,
+  type Target,
   type Verdict
 } from "../shared/types";
 
@@ -217,6 +220,11 @@ export class TargetDO extends DurableObject<Env> {
     return this.memo(`radar:${JSON.stringify(input)}`, () =>
       gatherRadar(this.env, input)
     );
+  }
+
+  /** Globalping is rate-limited per egress IP, so N callers for one host must cost one measurement. */
+  async globalping(target: Target): Promise<GlobalpingEvidence> {
+    return this.memo(`gp:${target.url}`, () => gatherGlobalping(target));
   }
 
   async statusPage(host: string): Promise<StatusPageInfo | null> {

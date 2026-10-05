@@ -40,7 +40,9 @@ export default function Sparkline({
       </span>
       {empty ? (
         <span className="text-xs text-kumo-inactive">
-          {count ? `${count} check${count === 1 ? "" : "s"} so far; chart appears after 3` : "no history yet"}
+          {count
+            ? `${count} check${count === 1 ? "" : "s"} so far; chart appears after 3`
+            : "no history yet"}
         </span>
       ) : (
         <>
@@ -99,7 +101,8 @@ export default function Sparkline({
             )}
           </svg>
           <span className="sr-only">
-            Edge response time over 24 hours, {s.ticks.length} failing checks
+            Edge response time over 24 hours, {s.ticks.length} failing{" "}
+            {s.ticks.length === 1 ? "check" : "checks"}
           </span>
           {s.points && (
             <span className="shrink-0 font-mono text-[11px] text-kumo-subtle">

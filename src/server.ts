@@ -9,6 +9,7 @@ import { IsItMeMcp } from "./agents/mcp";
 import { DiagnoseWorkflow } from "./workflow/diagnose";
 import { clientIp, hashIp, netInfo, publicNetInfo } from "./lib/net";
 import { badgeSvg } from "./lib/badge";
+import { pickLang } from "./lib/lang";
 import { supportBundle } from "./lib/bundle";
 import { CheckInput, HOST, RunInput } from "./shared/schemas";
 import { REPORT_TTL_DAYS, type ExtraCheck } from "./shared/types";
@@ -99,13 +100,18 @@ export default {
         return withCors(json({ ok: false, error }, 400));
       }
       const { url: target, expect } = input.data;
+      // The explanation follows the caller's Accept-Language; the verdict stays English.
+      const lang = pickLang(
+        request.headers.get("accept-language") ?? undefined
+      );
       const agent = await getAgentByName(
         env.UserAgent,
         `api-${await hashIp(ip)}`
       );
       if (q.get("wait") === "0") {
         const res = await agent.startCheck(target, netInfo(request), "api", {
-          expect
+          expect,
+          lang
         });
         if (!res.ok) return withCors(json(res, 400));
         return withCors(
@@ -121,7 +127,8 @@ export default {
         );
       }
       const outcome = await agent.checkNow(target, netInfo(request), "api", {
-        expect
+        expect,
+        lang
       });
       return withCors(json(outcome, outcome.ok ? 200 : 400));
     }

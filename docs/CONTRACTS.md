@@ -26,6 +26,136 @@ All P0 functions are implemented (wave P0 integrated). `hashIp`, `sanitizeProbe`
 
 Wave P1 prep is done: every P1 shared type is in `src/shared/types.ts`, `PROVIDER_DO` is bound (migration `v2`), and stubs with final signatures exist (see **Wave P1** below). P1 packages keep those signatures and fill the bodies.
 
+Wave P3 prep is done: every P3 shared type is in `src/shared/types.ts`, `src/lib/lang.ts` is implemented, `explain()` takes `opts.lang`, and `src/lib/globalping.ts` is a stub with its final signature (see **Wave P3** below). No new binding, secret or npm dep: Globalping is called unauthenticated.
+
+---
+
+## Wave P3 (prep done; Globalping, language, digest, per-host pages, CLI)
+
+Prep added every P3 shared type (all additive / optional), `src/lib/lang.ts` (implemented) and the
+`src/lib/globalping.ts` stub. P3 packages keep these signatures and fill the bodies.
+
+### Shared types added
+
+| Type / field                                                  | Purpose                                                                                                   |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `GlobalpingHop { hop, host?, ms? }`                           | one traceroute hop                                                                                        |
+| `GlobalpingProbe { continent?, country?, city?, asn?, network?, ok, ms?, status?, error?, hops? }` | one Globalping probe's result; `network` is the probe's AS name                                           |
+| `GlobalpingEvidence { skipped, skipReason?, probes, measurementId?, errors }` | the whole step's result; `skipped: true` when disabled, rate-limited, or every call failed                |
+| `Evidence.globalping?: GlobalpingEvidence \| null`            | corroboration only (see **THE RULE** below)                                                               |
+| `StepName` / `STEP_ORDER` gain `"globalping"`                 | between `regions` and `radar`; `STEP_LABEL` in `DiagnosisCard.tsx` is "Outside probes"                    |
+| `DiagnoseParams.lang?`, `Report.lang?`                        | BCP-47 primary tag the explanation was written in; absent = `"en"`                                        |
+| `AgentState.lang: string \| null`                             | the device's language, from `pickLang` on connect or the user's picker; `null` = `"en"`                   |
+| `AgentState.digestScheduleId: string \| null`                 | `scheduleEvery` id of the daily digest; `null` = off                                                      |
+| `AgentState.lastDigestAt?: number`                            | epoch ms of the last digest sent                                                                          |
+| `DigestSummary { at, hours, watches[] }`                      | one daily digest; each row is `{ watchId, host, verdict?, incidents, uptime }`                            |
+
+### `src/lib/globalping.ts` (stub)
+
+```ts
+export const GLOBALPING_API = "https://api.globalping.io/v1/measurements";
+
+export async function gatherGlobalping(
+  target: Target,
+  opts?: { limit?: number; traceroute?: boolean; timeoutMs?: number }
+): Promise<GlobalpingEvidence>;
+```
+
+- Unauthenticated globalping.io (no binding, no secret, no new npm dep): `POST` a measurement, then poll `GET /v1/measurements/:id` until `status !== "in-progress"`.
+- `limit` caps both the request and the records kept from the response (a malformed reply must not decide how big the stored evidence is); it defaults to a handful of probes; `traceroute` adds a second measurement that reuses the first one's probes (`locations: "<measurementId>"`) and fills `GlobalpingProbe.hops`. It is **off by default** and the workflow never passes it: a live traceroute measured >10 s, outside the 8 s step budget.
+- Map each result's `probe` block to the location/ASN fields and its `result` to `ok` / `ms` / `status` / `error`.
+- **Never throws.** Every failure (non-2xx, 429, timeout, bad JSON) pushes a string onto `errors`; nothing usable means `{ skipped: true, skipReason, probes: [], errors }`.
+
+### Workflow step `globalping` (`src/workflow/diagnose.ts`)
+
+- Runs after `regions`, before `radar`, as its own `step.do("globalping", cfg, () => t.globalping(target))` — through `TargetDO` like every other vantage, so concurrent callers for one host cost one measurement (Globalping is rate-limited per egress IP).
+- Skipped (status `skipped`) exactly where `regions` is skipped — both DNS resolvers failed — and whenever `GlobalpingEvidence.skipped` comes back true.
+- A failure never fails the run: catch, mark the step `error`, and set `evidence.globalping = null`.
+
+### THE RULE: Globalping is corroboration only
+
+**`Evidence.globalping` never changes a verdict.** `classify()` must not read it for any decision:
+
+- it is **not** a colo and **never enters the quorum in R6/R7** (the ok/failing ratios stay over `edge` + `regions` only);
+- it cannot create, upgrade, downgrade or block a verdict, and cannot move `confidence` or add a `factors` entry;
+- it adds exactly one descriptive `signals` line ("3 of 5 outside probes also failed", or "All 5 outside probes reached it"; nothing when the step is skipped or absent) and otherwise only feeds the explainer and the report UI.
+
+Same standing as `hints` and `rdap`: evidence a human reads, not an input to the rules. A change that lets it decide anything is a contract break, not a tweak. `test/classify.test.ts` pins this: the same evidence with `globalping` all-ok, all-failing or `null` yields the same verdict and confidence.
+
+### `src/lib/lang.ts` (pure, implemented, `test/lang.test.ts`)
+
+```ts
+export const LANGS: readonly string[];
+export function pickLang(acceptLanguage?: string): string;
+```
+
+- `LANGS` is the allowlist of BCP-47 **primary** tags the explainer may answer in (20 common languages). The UI gets display names from `Intl.DisplayNames`, so there is no label map.
+- `pickLang` parses an `Accept-Language` header, sorts by `q` (ties keep header order, `q=0` dropped), and returns the first allowlisted primary subtag (`"pt-BR"` → `"pt"`). Anything unknown, empty or `*` gives `"en"`.
+
+### `explain()` language
+
+```ts
+export async function explain(
+  env: Pick<Env, "AI">,
+  evidence: Evidence,
+  classification: Classification,
+  opts?: { lang?: string }
+): Promise<string>;
+```
+
+- `opts.lang` absent or `"en"` sends the prompt unchanged. Otherwise one rule is appended: answer wholly in that language, keeping hostnames, status codes and numbers exactly as the JSON has them.
+- `filterUngrounded` still runs, so an ungrounded provider name is dropped in any language.
+- `fallbackExplanation` stays English: it is a template, and a wrong-language template is worse than an English one.
+- The caller resolves the language: `DiagnoseParams.lang` → `explain(..., { lang })` → `Report.lang`. The agent sets `DiagnoseParams.lang = opts.lang ?? this.state.lang ?? undefined`; `AgentState.lang` is set in `onConnect` from `pickLang(ctx.request.headers.get("accept-language"))` unless it is already set (auto-guessed or picked).
+- `@callable setLang(lang): Promise<{ ok, lang }>` is the picker: it rejects anything outside `LANGS` and returns the unchanged language.
+- `GET /api/v1/check` passes `pickLang(request.headers.get("accept-language"))` as `checkNow`/`startCheck`'s `opts.lang`, so API and CLI callers get their own language too. Verdicts, signals and the fallback template stay English.
+
+### `src/lib/digest.ts` (pure, `test/digest.test.ts`)
+
+```ts
+export interface DigestWatchInput {
+  watchId: string;
+  host: string;
+  rows: Array<{ verdict: Verdict; evidence?: Evidence }>; // newest first
+  incidents: number;
+}
+export function buildDigest(
+  inputs: DigestWatchInput[],
+  at: number,
+  hours?: number            // default 24
+): { summary: DigestSummary; text: string } | null;
+```
+
+- Per watch: `uptime()` over the window (`src/lib/uptime.ts`, same R6 exclusions as `getUptime`), the newest run's verdict, and the caller's incident count.
+- `text` is the message sent to webhook/email: one line per watch, plus a "Slowest" line (highest mean `evidence.edge.ms`) when more than one watch has a measured time.
+- `null` = nothing to report (no watch had a run in the window). It never probes and never decides an alert.
+
+### UserAgent digest lifecycle
+
+```ts
+// schedule callback (scheduleEvery, 24 h)
+dailyDigest(): Promise<void>
+```
+
+- Durable Objects can't be enumerated, so there is no global cron: each UserAgent keeps **one** `scheduleEvery(86400, "dailyDigest")` alive while it has at least one watch. `addWatch` (and every `checkWatch` tick, so a restart self-heals) calls `ensureDigest()`, a no-op when `digestScheduleId` is set; `removeWatch` calls `stopDigest()` when the last watch goes, which cancels the schedule and sets `digestScheduleId = null`.
+- `dailyDigest()` reads the last 24 h of `trigger = 'watch'` report rows (the rows `getUptime` reads) and the `kind: "down"` alerts in the window, records `lastDigestAt`, and then, for each distinct webhook URL and email address, calls `buildDigest` over **that destination's watches only** and sends its text — destinations are per watch (`setWebhook`/`setEmail`), so one watch's rows never reach another's destination. **It never probes** and it is not an alert: `Watch.mutedUntil`, the incident state and `lastVerdict` are untouched.
+- With no watches, or no runs in the window, it sends nothing and still sets `lastDigestAt`.
+- `emailAlert(to, subject, body)` and `postWebhook(url, message, payload)` take the finished text, so alerts and the digest share one delivery path (the webhook SSRF re-check included). The digest's webhook payload carries `kind: "digest"`.
+
+### Client route `/h/:host`
+
+- A public per-host page in `app.tsx`'s manual router, beside `/r/`, `/c/` and `/trending`.
+- It reads `GET /api/host/:host` (`HostHistory`): the latest verdict, the `Sparkline` over `samples`, the badge markdown snippet, and a link to the latest report. It then makes one best-effort `GET /api/report/:host/:latestReportId` purely to render the crowd heatmap, which `HostHistory` does not carry; a failure is swallowed and the page renders without it. Both are read-only, so **it never starts a check** (R19) and the page is safe to link publicly and from the badge.
+- Gated by `isPublicHostParam(host)` (`guard.ts`), the same check `CheckPage` uses; otherwise it shows "not a public site".
+
+### CLI (`bin/isitme.mjs`)
+
+- Plain Node ESM, no dependencies, published through `package.json#bin`.
+- It is **only** an HTTP client of `GET /api/v1/check?url=[&expect=]`, with the default `wait=1`: no agent, no WebSocket, no browser vantage (`wantsBrowser: false` server-side), so a CLI verdict never has the browser vantage a chat check has. It does **not** poll `GET /api/v1/runs/:id`; `wait=1` blocks server-side (up to 2 min) and `--timeout` (default 125 s) aborts client-side, which covers the one-shot command.
+- Flags: `--expect` / `--json` / `--api` / `--timeout` / `--help` / `--version`. Exit 0 for `HEALTHY` or `SLOW`, 1 for everything else, so `isitme example.com || exit 1` is a CI gate. `DEFAULT_API` near the top of the file is the one place the base URL is hardcoded (`--api` and `$ISITME_API` override it); the deploy must set the real URL there.
+- Default API base is `SITE_URL` (the deployed Worker), overridable with `--api` / `ISITME_API`.
+- It prints `CheckOutcome` fields; `--json` prints the raw body. It must respect the 429 the shared `RATE_LIMITER` returns (20 requests per 60 s per IP) rather than retrying hard.
+
 ---
 
 ## Wave P2 (implemented; spec: `docs/COMPETITOR_SPEC.md` §4 P2)
@@ -282,7 +412,7 @@ export async function egressColo(): Promise<string | undefined>;
   - `addresses` holds only type 1/28 answers. `cnames` holds only type 5 answers, trailing dot stripped. `ok = rcode === 0 && addresses.length > 0`. `ms` is wall time.
   - **DNSSEC (R11)**: when `checkDnssec` and `rcode === 2`, re-query A with `cd=1`. NOERROR there sets `dnssecFailed: true` (the result stays `ok: false`, rcode 2).
 - **`httpProbe`**
-  - GET, `redirect: "manual"`, `user-agent: IsItMe/1.0 (+https://github.com/…/cf_ai_isitme)`, plus `x-isitme-check` when `checkId` is set.
+  - GET, `redirect: "manual"`, `user-agent: IsItMe/1.0 (+https://github.com/MrKuros/isitme)`, plus `x-isitme-check` when `checkId` is set.
   - **Redirects (R5)**: follows 301/302/303/307/308 up to `maxRedirects`, resolving `Location` against the current URL. Before each hop (not the first request, which the workflow already guarded) it awaits `hopGuard(next)`; a non-null answer stops the probe **without fetching**: `{ ok: false, refused: reason, errorClass: "unknown", chain }`. When `maxRedirects` runs out, or the next hop is already in `chain` (a loop), the probe stops with `{ ok: false, errorClass: "unknown", error: "redirect loop", status: <last 3xx>, redirectedTo, chain }`: browsers fail these with ERR_TOO_MANY_REDIRECTS. `chain` lists every hop `{url, status}` including the final one; `status`, `server`, `cfRay`, `redirectedTo` describe the final hop. `ms` runs from probe start to the final hop's headers (redirect hops included).
   - **Body (R1, R4)**: reads at most 64 KB (stream, then cancel) on 2xx `text/html` and on 403/429/451/503; otherwise cancels unread. Sets `bytes`, `title`, `flags` from `pageFlags`, `blocked` from `detectBlock`.
   - **`ok`** = the final hop answered 2xx/3xx/4xx, **or** `blocked` is set (then `errorClass: "blocked"`, `ok: true`). 5xx, 525/526 and 530 are failures.
@@ -332,6 +462,8 @@ export function assertSafeTarget(target: Target, resolved: string[]): void; // t
 - **Known ceiling:** DNS rebinding between the check and the fetch. Mark it with `// ponytail:` and don't solve it.
 
 ### `src/lib/classify.ts` (pure, deterministic, fully unit-tested)
+
+`Evidence.globalping` is **not** an input to any rule: see **THE RULE** under Wave P3.
 
 ```ts
 export function classify(evidence: Evidence): Classification; // verdict, subtype?, confidence, signals
@@ -388,7 +520,8 @@ export async function gatherRadar(
 export async function explain(
   env: Pick<Env, "AI">,
   evidence: Evidence,
-  classification: Classification
+  classification: Classification,
+  opts?: { lang?: string }
 ): Promise<string>;
 ```
 
@@ -400,8 +533,9 @@ export async function explain(
   - Say "your browser could reach it", never "it returned 200", for the browser vantage.
 - **Input**: the evidence goes in as compact JSON (drop empty arrays).
 - **Output**: markdown under 120 words.
-- `compactEvidence` cuts every `name` and `description` string to 80 chars (vendor-written status-page text) before it reaches the model.
-- The output goes through `filterUngrounded(text, groundingText(evidence, classification))`: sentences naming a provider absent from the evidence are dropped. `groundingText` is the compact evidence minus plumbing that always names Cloudflare/Google (`resolver`, `server` fields, "Cloudflare's edge/locations/probes/WARP/Gateway" wording) and minus `cfStatus` unless `selfSuspect` is set. On an AI error or an empty filtered answer it returns `fallbackExplanation(classification)` (templates from `NEXT_STEPS` / `NEXT_STEPS_BY_SUBTYPE`, < 120 words). Never returns `""`, never throws.
+- `compactEvidence` cuts every `name` and `description` string to 80 chars (vendor-written status-page text) before it reaches the model, and `DROP_KEYS` removes the target-written ones outright (`error`, `cnames`, `title`).
+- The output goes through `filterUngrounded(text, groundingText(evidence, classification))`: sentences naming a provider absent from the evidence are dropped. `groundingText` is the compact evidence minus plumbing that always names Cloudflare/Google (`resolver`, `server` fields, "Cloudflare's edge/locations/probes/WARP/Gateway" wording), minus `globalping` (a third-party probe's own AS name must not ground blame — THE RULE) and minus `cfStatus` unless `selfSuspect` is set. On an AI error or an empty filtered answer it returns `fallbackExplanation(classification)` (templates from `NEXT_STEPS` / `NEXT_STEPS_BY_SUBTYPE`, < 120 words). Never returns `""`, never throws.
+- `opts.lang` (a `pickLang` tag) appends one rule asking for that language; `"en"` or absent changes nothing, and the fallback template stays English. See **Wave P3**.
 
 ### `src/lib/net.ts`
 
@@ -483,6 +617,7 @@ regions(url: string, expect?: string): Promise<RegionProbe[]>
                                                       //   A rejected RPC becomes { region: r, ok: false, ms: 0, noData: true, error: "probe unavailable" } (R6).
                                                       //   confirmSick: tally-based vantageSick survives only when >= 3 regions answered ok.
 radar(input: RadarInput): Promise<RadarEvidence>      // memo("radar:"+JSON.stringify(input)) -> gatherRadar(this.env, input)
+globalping(target: Target): Promise<GlobalpingEvidence>  // memo("gp:"+target.url) -> gatherGlobalping(target)
 recordCheck(check: CrowdCheck): Promise<void>         // SQL insert; trims rows older than 1h
 crowdStats(windowMinutes = 10): Promise<CrowdStats>   // SQL aggregate over the window; byAsn/byCountry sorted by failing desc, top 10
 saveReport(report: Report, ownerId: string): Promise<void>
@@ -561,33 +696,34 @@ Step config for probes: `{ retries: { limit: 2, delay: "1 second", backoff: "exp
    - If `target.isIpLiteral`, mark it skipped and set `dns = dnsAlt = null`.
    - Otherwise `{ dns, dnsAlt } = await step.do("dns", cfg, () => t.dns(host))`; both go into `Evidence`.
    - Then, **outside step.do**, call `assertSafeTarget(target, [...dns.addresses, ...dnsAlt.addresses])`. On `GuardError`, mark the step error, call `await step.reportError("blocked: " + msg)`, and return.
-   - If **both** `!dns.ok` and `!dnsAlt.ok`, mark the step error (not a throw), skip `edge`, `regions`, and `radar` (status `skipped`), and continue at `browser`. One failing resolver is a signal, not a skip.
+   - If **both** `!dns.ok` and `!dnsAlt.ok`, mark the step error (not a throw), skip `edge`, `regions`, `globalping`, and `radar` (status `skipped`), and continue at `browser`. One failing resolver is a signal, not a skip.
 2. **`edge`**: `t.edge(url, runId)`.
    - If `edge.refused`, a redirect hop failed the guard: mark the step error and `await step.reportError("blocked: " + edge.refused)`, then return (R5c).
    - **Root (R5)**: if the URL path isn't `/` and `edge.status` is 404/410, `root = await t.edge(origin + "/")` inside the same step.
    - **Alt (R5)**: if DNS failed on both resolvers or `edge.errorClass` is `dns`/`connect`/`tls`, probe the other host once (`www.` added, or stripped): `altT = TARGET_DO.getByName(altHost)`, `altT.dns` → guard → `altT.edge(altUrl)`, in its own `step.do("alt", …)` (no progress events; failures give `alt = null`). Store `evidence.alt = { host, dns, probe }`.
 3. **`regions`**: `t.regions(url)`.
-4. **`radar`**: `t.radar({ targetIp: dns?.addresses[0] ?? dnsAlt?.addresses[0] ?? (isIpLiteral ? host : undefined), userAsn: user.asn, userCountry: user.country })`. The status is `skipped` if `radar.skipped`.
-5. **`browser`**: only if `wantsBrowser`, otherwise `skipped`.
+4. **`globalping`**: `t.globalping(target)` (see **Wave P3**). Corroboration only; it never enters the R6/R7 quorum and never changes a verdict.
+5. **`radar`**: `t.radar({ targetIp: dns?.addresses[0] ?? dnsAlt?.addresses[0] ?? (isIpLiteral ? host : undefined), userAsn: user.asn, userCountry: user.country })`. The status is `skipped` if `radar.skipped`.
+6. **`browser`**: only if `wantsBrowser`, otherwise `skipped`.
    - `let b = await step.do("browser-read", () => this.agent.getBrowserProbe(runId))`.
    - If `b` is null, `try { b = (await step.waitForEvent<BrowserProbe>("browser-wait", { type: "browser-probe", timeout: "15 seconds" })).payload } catch { b = null }`.
    - A null result is marked `skipped` with the summary "no result from your browser".
    - This covers both orderings: whether the probe arrives before or after the workflow reaches this step.
-6. **`crowd`**
+7. **`crowd`**
    - One `step.do`: first `t.recordCheck(...)`, then `t.crowdStats(10)`. Browser rows carry the user's `asn/asName/country/colo` and a hashed-IP `voter` (one row per voter per window); edge rows carry none of them. `byAsn`/`byCountry` count browser rows only.
    - `ok`/`ms`/`source` come from the browser if it's present, otherwise from the edge.
    - Watch/api/mcp runs record with `source: "edge"`.
-7. **`classify`**: `step.do("classify", async () => classify(evidence))`.
-8. **`explain`**
+8. **`classify`**: `step.do("classify", async () => classify(evidence))`.
+9. **`explain`**
    - Skipped when `trigger === "watch" && classification.verdict === previousVerdict`, with `explanation = ""`.
-   - Otherwise run `explain(this.env, evidence, classification)` with `{ retries: { limit: 1, delay: "2 seconds" }, timeout: "45 seconds" }`.
-9. **`save`** (not a StepName, so no progress events)
+   - Otherwise run `explain(this.env, evidence, classification, { lang: params.lang })` with `{ retries: { limit: 1, delay: "2 seconds" }, timeout: "45 seconds" }`, and set `report.lang = params.lang`.
+10. **`save`** (not a StepName, so no progress events)
    - Build the `Report`: `evidence.user = publicNetInfo(user)`, `extraChecks: []`, `id = runId`.
    - `await t.saveReport(report, ownerId)`.
    - Write an Analytics Engine data point (see below).
    - Then `await step.reportComplete<DiagnoseResult>({ runId, report, explainSkipped })`.
 
-A step that fails after its retries (edge, regions, radar, crowd, explain) never fails the run. Catch the error, mark the step `error`, and use `null` or `[]`. Only the guard aborts the run.
+A step that fails after its retries (edge, regions, globalping, radar, crowd, explain) never fails the run. Catch the error, mark the step `error`, and use `null` or `[]`. Only the guard aborts the run.
 
 **Analytics** (`this.env.ANALYTICS.writeDataPoint`), best effort in try/catch:
 `{ indexes: [host], blobs: [host, verdict, trigger, user.country ?? "", user.colo ?? "", edge?.errorClass ?? ""], doubles: [totalMs, dns?.ms ?? 0, edge?.ms ?? 0, confidence] }`.
@@ -605,6 +741,8 @@ A step that fails after its retries (edge, regions, radar, crowd, explain) never
 
 - `initialState = INITIAL_AGENT_STATE`.
 - `onConnect(conn, ctx)` sets `user = netInfo(ctx.request)` and `origin = new URL(ctx.request.url).origin`.
+- `onConnect` also sets `lang = pickLang(ctx.request.headers.get("accept-language"))` unless the user already picked one (P3).
+- `lang`, `digestScheduleId` and `lastDigestAt` are the P3 digest/language fields; see **Wave P3**.
 - `runs` is newest first, capped at 20. `alerts` and `history` are capped at 50.
 - **State is server-owned**: `validateStateChange(next, source)` throws for any `source !== "server"`, so a client `cf_agent_state` frame is rejected (callables that call `setState` are server writes and still work).
 - **Mutate state only through synchronous read-modify-write** (`this.setState({ ...this.state, runs: ... })`) with no `await` between the read and `setState`. Concurrent workflow callbacks rely on this.
@@ -657,15 +795,17 @@ submitBrowserProbe(runId: string, probe: BrowserProbe): Promise<void>
 unwatch(watchId: string): Promise<boolean>
 getReport(reportId: string): Promise<Report | null>   // host from own SQL -> TARGET_DO(host).getReport(id) ?? own json copy
 markAlertsRead(): Promise<void>
+setLang(lang: string): Promise<{ ok: boolean; lang: string }>                        // P3; rejects anything outside LANGS
 ```
 
 ### Server/workflow RPC (not callable from the browser)
 
 ```ts
-checkNow(input: string, user: NetInfo, trigger: "api" | "mcp", opts?: { expect?: string }): Promise<CheckOutcome>   // wantsBrowser: false; = startCheck + wait
+checkNow(input: string, user: NetInfo, trigger: "api" | "mcp", opts?: { expect?: string; lang?: string }): Promise<CheckOutcome>   // wantsBrowser: false; = startCheck + wait
 getBrowserProbe(runId: string): Promise<BrowserProbe | null>
 onExtraCheck(host: string, reportId: string, check: ExtraCheck): Promise<void>        // broadcast AgentBroadcast "extra-check"
 checkWatch(payload: { watchId: string }): Promise<void>                              // schedule callback
+dailyDigest(): Promise<void>                                                         // schedule callback (P3)
 ```
 
 ### Watch logic (R8)
@@ -745,6 +885,7 @@ checkWatch(payload: { watchId: string }): Promise<void>                         
     - `/` → chat
     - `/r/:host/:id` → `<ReportPage host id />`
     - `/c/:host?ref=:reportId` → `<CheckPage host refId />`
+    - `/h/:host` → public per-host page, read-only over `/api/host/:host` (P3)
 - **Device id**: `getDeviceId()` in `app.tsx`. It lives in localStorage key `isitme:deviceId` and is a `crypto.randomUUID()`.
 - **Agent connection**: `useAgent<UserAgent, AgentState>({ agent: "UserAgent", name: getDeviceId(), onMessage })`.
   - `agent.state` is the live `AgentState`.
@@ -775,7 +916,7 @@ checkWatch(payload: { watchId: string }): Promise<void>                         
     - If `refId` is set, POSTs `/api/extra-check`.
     - Shows the visitor a simple result: "Your browser could / couldn't reach host".
     - Without `refId`, it only shows the local result.
-- **Styling**: Kumo components plus Tailwind, as in the starter (`docs/starter-app.tsx.txt`). The dark mode toggle uses `data-mode` on `<html>`, set in `index.html`.
+- **Styling**: Kumo components plus Tailwind, as in the Cloudflare chat-agent starter. The dark mode toggle uses `data-mode` on `<html>`, set in `index.html`.
 
 ---
 

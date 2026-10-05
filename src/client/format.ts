@@ -133,3 +133,73 @@ export function sparkline(
     max
   };
 }
+
+/** One run of consecutive failing samples on the 24h timeline. */
+export interface FailWindow {
+  from: number;
+  to: number;
+  count: number;
+  /** Verdict of the first failing sample in the run. */
+  verdict: Verdict;
+}
+
+/**
+ * Contiguous runs of failing samples, newest first. Only an ok sample closes a
+ * window: a gap in sampling is not evidence that it recovered.
+ */
+export function failWindows(
+  samples: Array<{ at: number; ok: boolean; verdict: Verdict }>
+): FailWindow[] {
+  const out: FailWindow[] = [];
+  let open = false;
+  for (const s of [...samples].sort((a, b) => a.at - b.at)) {
+    if (s.ok) {
+      open = false;
+    } else if (open) {
+      const w = out[out.length - 1];
+      w.to = s.at;
+      w.count++;
+    } else {
+      out.push({ from: s.at, to: s.at, count: 1, verdict: s.verdict });
+      open = true;
+    }
+  }
+  return out.reverse();
+}
+
+/** "Frankfurt, DE · Deutsche Telekom" from whatever a Globalping probe reported. */
+export function globalpingLabel(p: {
+  continent?: string;
+  country?: string;
+  city?: string;
+  asn?: number;
+  network?: string;
+}): string {
+  const where = [p.city, p.country ?? p.continent].filter(Boolean).join(", ");
+  const net = p.network ?? (p.asn ? `AS${p.asn}` : undefined);
+  return [where || "unknown location", net].filter(Boolean).join(" · ");
+}
+
+/**
+ * The AI SDK retries a failing step up to 5 times and each attempt arrives as
+ * its own part, so one failure renders up to 5 identical cards. Returns the
+ * toolCallIds to hide: every repeat of a failure already shown in this message.
+ */
+export function duplicateErrorIds(
+  parts: Array<{
+    type: string;
+    state?: string;
+    errorText?: string;
+    toolCallId?: string;
+  }>
+): Set<string> {
+  const seen = new Set<string>();
+  const dupes = new Set<string>();
+  for (const p of parts) {
+    if (p.state !== "output-error" || !p.toolCallId) continue;
+    const key = `${p.type}\u0000${p.errorText ?? ""}`;
+    if (seen.has(key)) dupes.add(p.toolCallId);
+    else seen.add(key);
+  }
+  return dupes;
+}

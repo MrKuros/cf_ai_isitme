@@ -121,6 +121,12 @@ export default function ReportPage({ host, id }: { host: string; id: string }) {
               subtype={subtype}
               confidence={confidence}
             />
+            <a
+              href={`/h/${encodeURIComponent(r.host)}`}
+              className="text-sm text-kumo-link"
+            >
+              24h history
+            </a>
           </div>
           <SelfSuspectBanner reasons={r.classification.selfSuspect} />
           <p className="tone-text text-3xl leading-tight font-semibold tracking-tight">

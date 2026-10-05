@@ -40,6 +40,7 @@ const STEP_LABEL: Record<StepName, string> = {
   dns: "DNS lookup",
   edge: "Cloudflare edge",
   regions: "5 regions",
+  globalping: "Outside probes",
   radar: "Cloudflare Radar",
   provider: "Hosting provider",
   status: "Status page",

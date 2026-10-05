@@ -6,8 +6,6 @@ Installed: `agents@0.24.0`, `@cloudflare/ai-chat@0.12.0`, `ai@6.0.286`, `@ai-sdk
 Local docs worth reading: `node_modules/agents/docs/*.md` (workflows.md, scheduling.md, state.md,
 callable-methods.md, chat-agents.md, mcp-servers.md, client-sdk.md).
 
-Starter's original chat UI (for Kumo/streamdown usage patterns) is kept at `docs/starter-app.tsx.txt`.
-
 ## Agent base (`import { Agent, callable, getAgentByName, routeAgentRequest, type Connection, type ConnectionContext, type Schedule } from "agents"`)
 
 ```ts

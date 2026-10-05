@@ -57,7 +57,8 @@ Rules:
 - Next steps must fit the verdict. HEALTHY with the browser reaching it means the network path is fine: suggest page-level fixes (hard refresh, private window, clear site data, another browser), never router restarts or calling the ISP. Only suggest network or ISP steps for LIKELY_YOUR_NETWORK or ISP_OUTAGE. For site-side verdicts say there is nothing to fix locally.
 - Markdown only, under 120 words total, no headings, no preamble.`;
 
-// `error` strings can carry target- or client-controlled text; errorClass says enough.
+// `error` strings and the page `title` carry target- or client-controlled text; errorClass and
+// the page flags say enough, and nothing in classify quotes a title.
 const DROP_KEYS = new Set([
   "startedAt",
   "finishedAt",
@@ -65,7 +66,8 @@ const DROP_KEYS = new Set([
   "city",
   "input",
   "error",
-  "cnames"
+  "cnames",
+  "title"
 ]);
 
 // Vendor/status-page free text reaches the prompt capped.
@@ -140,6 +142,9 @@ export function groundingText(
   return compactEvidence(
     {
       ...evidence,
+      // A third-party probe's own AS name must not ground blame (THE RULE): corroboration
+      // only, so it cannot un-ban a provider the rest of the evidence never names.
+      globalping: null,
       ...(!classification.selfSuspect?.length && { cfStatus: null })
     },
     classification
@@ -285,17 +290,27 @@ export function fallbackExplanation(c: Classification): string {
   return `${lead}\n\n${tail}`;
 }
 
+/** Appended to the system prompt for a non-English answer. `filterUngrounded` still runs on the output. */
+function langRule(lang: string): string {
+  const name =
+    new Intl.DisplayNames(["en"], { type: "language" }).of(lang) ?? lang;
+  return `- Write the whole answer, including the next steps, in ${name} (${lang}). Keep every hostname, status code and number exactly as it appears in the JSON.`;
+}
+
 /** LLM explanation grounded in the evidence JSON. Falls back to a template on LLM failure (never throws). */
 export async function explain(
   env: Pick<Env, "AI">,
   evidence: Evidence,
-  classification: Classification
+  classification: Classification,
+  opts?: { lang?: string }
 ): Promise<string> {
   try {
     const json = compactEvidence(evidence, classification);
+    const lang = opts?.lang && opts.lang !== "en" ? opts.lang : null;
+    const system = lang ? `${SYSTEM}\n${langRule(lang)}` : SYSTEM;
     const out = await env.AI.run(MODEL, {
       messages: [
-        { role: "system", content: SYSTEM },
+        { role: "system", content: system },
         { role: "user", content: json }
       ],
       max_tokens: 300,
