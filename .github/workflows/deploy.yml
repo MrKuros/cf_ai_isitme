@@ -70,7 +70,17 @@ jobs:
         run: |
           npm i --no-save playwright
           npx playwright install --with-deps chromium
+          set +e
           npm run e2e
+          code=$?
+          set -e
+          # 75 = Workers AI is out of its daily free allowance, so chat cannot run.
+          # That is a quota state, not a regression in the build we just shipped.
+          if [ $code -eq 75 ]; then
+            echo "::warning::Workers AI daily allowance exhausted; browser test skipped"
+            exit 0
+          fi
+          exit $code
       - uses: actions/upload-artifact@v7
         if: always() && env.CLOUDFLARE_API_TOKEN != ''
         with:
