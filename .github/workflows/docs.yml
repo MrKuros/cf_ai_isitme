@@ -32,7 +32,7 @@ jobs:
           fetch-depth: 0 # lastUpdated timestamps need the history
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 25
           cache: npm
       - run: npm ci
       - run: npm run docs:build
