@@ -38,20 +38,20 @@ which forks the repo and deploys it for you.
 All of them are declared in `wrangler.jsonc`. None of them need to be created by
 hand first.
 
-| Binding | Kind | What it is for |
-|---|---|---|
-| `AI` | Workers AI | Writes the explanation (Llama 3.3 70B) and routes chat messages to tools (GLM-4.7-Flash). |
-| `DIAGNOSE_WORKFLOW` | Workflow | The check itself: ordered, retried, durable steps. One run per check. |
-| `UserAgent` | Durable Object | One per visitor. Holds the conversation, saved checks, watches and alert settings. |
-| `TARGET_DO` | Durable Object | One per host checked. De-duplicates simultaneous checks of the same site, and stores its history and share reports. |
-| `PROBE_DO` | Durable Object | One per region. Each is placed with a `locationHint` and loads the site from there. |
-| `PROVIDER_DO` | Durable Object | Counts failures per hosting provider, so a Cloudflare- or AWS-wide problem is recognised as one. |
-| `TRENDS_DO` | Durable Object | The global "what's breaking now" list behind `/trending`. |
-| `MCP_OBJECT` | Durable Object | Session state for the MCP server at `/mcp`. |
-| `RATE_LIMITER` | Rate limiting | 20 requests per 60 seconds per IP, counted separately for each kind of endpoint. |
-| `ANALYTICS` | Analytics Engine | Writes one row per check so you can query your own usage. Nothing is written if you remove it. |
-| `EMAIL` | Email sending | Email alerts for watched sites. Needs setup — see below. |
-| `assets` | Static assets | Serves the built SPA from `dist/`. `/agents/*`, `/api/*`, `/mcp*` and `/badge/*` hit the Worker first. |
+| Binding             | Kind             | What it is for                                                                                                      |
+| ------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `AI`                | Workers AI       | Writes the explanation (Llama 3.3 70B) and routes chat messages to tools (GLM-4.7-Flash).                           |
+| `DIAGNOSE_WORKFLOW` | Workflow         | The check itself: ordered, retried, durable steps. One run per check.                                               |
+| `UserAgent`         | Durable Object   | One per visitor. Holds the conversation, saved checks, watches and alert settings.                                  |
+| `TARGET_DO`         | Durable Object   | One per host checked. De-duplicates simultaneous checks of the same site, and stores its history and share reports. |
+| `PROBE_DO`          | Durable Object   | One per region. Each is placed with a `locationHint` and loads the site from there.                                 |
+| `PROVIDER_DO`       | Durable Object   | Counts failures per hosting provider, so a Cloudflare- or AWS-wide problem is recognised as one.                    |
+| `TRENDS_DO`         | Durable Object   | The global "what's breaking now" list behind `/trending`.                                                           |
+| `MCP_OBJECT`        | Durable Object   | Session state for the MCP server at `/mcp`.                                                                         |
+| `RATE_LIMITER`      | Rate limiting    | 20 requests per 60 seconds per IP, counted separately for each kind of endpoint.                                    |
+| `ANALYTICS`         | Analytics Engine | Writes one row per check so you can query your own usage. Nothing is written if you remove it.                      |
+| `EMAIL`             | Email sending    | Email alerts for watched sites. Needs setup — see below.                                                            |
+| `assets`            | Static assets    | Serves the built SPA from `dist/`. `/agents/*`, `/api/*`, `/mcp*` and `/badge/*` hit the Worker first.              |
 
 The Durable Object classes are all SQLite-backed (`new_sqlite_classes` in the
 `migrations` list). Don't renumber or rename those migration tags on an existing
@@ -88,9 +88,9 @@ cp .dev.vars.example .dev.vars   # then fill in RADAR_TOKEN=
 
 One optional plain variable:
 
-| Variable | Default | What it does |
-|---|---|---|
-| `EMAIL_FROM` | `alerts@isitme.example` | The `From:` address on alert emails. |
+| Variable     | Default                 | What it does                                                                                                  |
+| ------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `EMAIL_FROM` | `alerts@isitme.example` | The `From:` address on alert emails. The default is a placeholder, and while it is set email alerts stay off. |
 
 ### Email alerts
 
@@ -105,24 +105,25 @@ send API, and it has two constraints that are easy to trip over:
 2. **The recipient must be a verified destination address** in that zone's Email
    Routing settings. Cloudflare will not send to arbitrary addresses.
 
-Until you do both, email alerts silently do nothing — the code skips sending
-when `env.EMAIL` is unavailable. Webhook alerts (Slack, Discord, any JSON
-endpoint) need no setup at all, so they are the easier path. See
-[Watching and alerts](/watching).
+Until you set `EMAIL_FROM`, email is simply unavailable rather than broken:
+asking the chat for email alerts gets a refusal naming the variable, and alerts
+and digests skip email instead of attempting a send Email Routing would reject.
+Webhook alerts (Slack, Discord, any JSON endpoint) need no setup at all, so they
+are the easier path. See [Watching and alerts](/watching).
 
 ## Free-tier limits and realistic costs
 
 What one check actually consumes, counted from the code:
 
-| Resource | Per check |
-|---|---|
-| Workflow runs | 1 (about a dozen steps) |
-| Durable Object calls | ~8: one per region, one for the host, plus provider and trends |
-| Workers AI calls | 1 for the explanation, plus 1 chat-model call if you asked in the chat |
-| Outbound requests | DNS over two resolvers, one edge probe, five regional probes, Globalping, Radar, the site's status page |
-| Analytics Engine rows | 1 |
+| Resource              | Per check                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------------------- |
+| Workflow runs         | 1 (about a dozen steps)                                                                                 |
+| Durable Object calls  | ~8: one per region, one for the host, plus provider and trends                                          |
+| Workers AI calls      | 1 for the explanation, plus 1 chat-model call if you asked in the chat                                  |
+| Outbound requests     | DNS over two resolvers, one edge probe, five regional probes, Globalping, Radar, the site's status page |
+| Analytics Engine rows | 1                                                                                                       |
 
-A check takes roughly 11 to 20 seconds wall-clock, most of it waiting on the
+A check takes roughly 5 to 15 seconds wall-clock, most of it waiting on the
 network rather than burning CPU, and Workers bills CPU time, not wall-clock.
 
 The numbers that bound a free account — Workers requests per day, Workers AI
@@ -183,23 +184,23 @@ the hostname and its certificate.
 Three files hardcode the deployed origin, and a custom domain means editing all
 three:
 
-| File | What it sets |
-|---|---|
-| `bin/isitme.mjs` | `DEFAULT_API` — where the CLI checks by default |
+| File                                 | What it sets                                          |
+| ------------------------------------ | ----------------------------------------------------- |
+| `bin/isitme.mjs`                     | `DEFAULT_API` — where the CLI checks by default       |
 | `docs-site/.vitepress/theme/site.ts` | `SITE_URL` — every link and live example on this site |
-| `index.html` | `og:url` and `og:image` — link previews |
+| `index.html`                         | `og:url` and `og:image` — link previews               |
 
 ## Local versus deployed
 
 `npm run dev` runs the real Worker in a local `workerd`, with Workers AI called
 remotely. Most of the app behaves identically. These things do not:
 
-| | Local dev | Deployed |
-|---|---|---|
-| **Regions** | `locationHint` is ignored. All five "regions" run in your own colo. | Five genuinely different Cloudflare regions. |
-| **Confidence** | Capped, because one location is not five. | Full. |
-| **TLS failures** | `workerd` reports them as an opaque `internal error`, so <Verdict v="TLS_ERROR" /> is not reachable locally. | Real bad certificates produce it. |
-| **Cloudflare IPs** | `connect()` to Cloudflare addresses is blocked, so nameserver lookups over TCP fail for Cloudflare-hosted zones. Labelled "no data". | Works. |
+|                    | Local dev                                                                                                                            | Deployed                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| **Regions**        | `locationHint` is ignored. All five "regions" run in your own colo.                                                                  | Five genuinely different Cloudflare regions. |
+| **Confidence**     | Capped, because one location is not five.                                                                                            | Full.                                        |
+| **TLS failures**   | `workerd` reports them as an opaque `internal error`, so <Verdict v="TLS_ERROR" /> is not reachable locally.                         | Real bad certificates produce it.            |
+| **Cloudflare IPs** | `connect()` to Cloudflare addresses is blocked, so nameserver lookups over TCP fail for Cloudflare-hosted zones. Labelled "no data". | Works.                                       |
 
 The regional one is visible in any local report. All five entries come back with
 the same `colo`:
@@ -217,6 +218,23 @@ All 5 outside probes reached it
 
 > "Only one Cloudflare location answered" is the app telling you it knows. After
 > a deploy that line disappears and the confidence goes up.
+
+The same call against the deployed demo, which has a `RADAR_TOKEN`:
+
+```console
+$ curl -s "https://cf-ai-isitme.patelkashishpatel032.workers.dev/api/v1/check?url=example.com" \
+    | jq -r '.signals[]'
+Cloudflare's edge (ORD) got HTTP 200 in 7ms
+5/5 regions reachable (median 6ms)
+DNS resolved to 4 addresses in 3ms, DNSSEC-validated
+11 checks in the last 10 min, 0 failing
+No ongoing Radar outages or anomalies for your network
+All 5 outside probes reached it
+```
+
+The five regions ran in DFW, ORD, AMS, KIX and MEL — the full
+[report's](/sharing#the-text-bundle-for-support-tickets) vantage list names each
+colo.
 
 There is also `npm run dev:local` (`LOCAL_ONLY=1`), which skips every remote
 binding. Probes, the REST API, MCP, badges, reports and all the pages work;

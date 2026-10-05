@@ -15,21 +15,23 @@ const props = defineProps({
   sub: { type: String, default: "" },
   confidence: { type: Number, default: 0.95 },
   /** Seconds the check took. */
-  elapsed: { type: Number, default: 16.4 },
+  elapsed: { type: Number, default: 10.4 },
   signals: {
     type: Array,
     default: () => [
-      "Cloudflare's edge (MAA) got HTTP 200 in 412ms",
-      "5/5 regions reachable (median 318ms)",
-      "DNS resolved to 1 address in 24ms, DNSSEC-validated",
-      "Your browser could reach it in 389ms",
+      "Cloudflare's edge (MXP) got HTTP 200 in 46ms",
+      "5/5 regions reachable (median 61ms)",
+      "DNS resolved to 1 address in 2ms",
+      "Your browser could reach it in 495ms",
+      "5 checks in the last 10 min, 0 failing",
+      "No ongoing Radar outages or anomalies for your network",
       "All 5 outside probes reached it"
     ]
   },
   explanation: {
     type: String,
     default:
-      "It's up. Cloudflare reached it from all five regions and so did your browser, in about the same time, so nothing on your side is in the way."
+      "The site is reachable from all locations. Your browser could reach it in 495ms. All outside probes and regions also reached it successfully."
   },
   /** Path like "/r/github.com/<id>", or "" for no link. */
   reportPath: { type: String, default: "" },
@@ -62,7 +64,12 @@ const headline = computed(() => verdictInfo(props.verdict).headline);
       </ul>
       <p v-if="explanation" class="explain">{{ explanation }}</p>
       <div class="tools">
-        <a v-if="reportPath" :href="SITE_URL + reportPath" target="_blank" rel="noreferrer">
+        <a
+          v-if="reportPath"
+          :href="SITE_URL + reportPath"
+          target="_blank"
+          rel="noreferrer"
+        >
           Full report
         </a>
         <span v-else class="btn">Full report</span>

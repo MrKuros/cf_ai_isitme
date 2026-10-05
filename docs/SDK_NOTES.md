@@ -169,7 +169,26 @@ Checked 2026-09-21 with `npm run dev:local` (local workerd via the vite plugin),
 | `httpbin.org/delay/9`    | First attempt aborts at 8 s (`TimeoutError`), the 15 s retry answers 200 in ~12 s                                                                                                                              | `ok: true`, `retried: true` (verdict SLOW)                       |
 
 - Locally, a bad certificate never shows up as 525/526 and never as TLS text, so TLS*ERROR can't be produced in local dev: it lands as an unknown failure (INCONCLUSIVE/DOWN*\*).
-- The 525/526 → `tls`, 530 → `dns`, 520-524 + `cf-ray` → `cdnOrigin` mapping follows Cloudflare's documented edge codes and is unit-tested with mocked responses only. **Production behaviour is unverified until deploy**: re-run the four URLs above against the deployed Worker and record whether the edge synthesizes 526 or throws. If it throws the same opaque `internal error`, TLS detection needs another signal (e.g. an `http://` control fetch of the same host).
+- The 525/526 → `tls`, 530 → `dns`, 520-524 + `cf-ray` → `cdnOrigin` mapping follows Cloudflare's documented edge codes. **526 is now verified in production** (2026-10-05, `GET /api/v1/check?url=expired.badssl.com` against the deployed Worker): the edge synthesizes `HTTP 526` rather than throwing, so the verdict is `TLS_ERROR` at 0.95 with signals `Cloudflare's edge (LHR) failed: HTTP 526` and `5/5 regions failed (wnam: HTTP 526, …)`. No extra signal is needed. The 530 and 520-524 arms are still mocked-only — they need a target that produces those codes.
+
+## Cloudflare Radar response shapes (verified 2026-10-05)
+
+Checked with a real `RADAR_TOKEN` through `npm run dev` (`GET /api/v1/check?url=github.com`), logging the raw body of every call `src/lib/radar.ts` makes. **Every field the parser reads exists.** Unknown query params are silently ignored (no error), so the filter names below were each confirmed to actually filter.
+
+| Call                                                                        | Envelope                         | Item fields used                                                                                                               | Confirmed                                                                                                                  |
+| --------------------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `annotations/outages?dateRange=1d&asn=<n>` / `&location=<CC>`               | `result.annotations[]`           | `id` (string), `description`, `startDate`, `endDate` (nullable), `outage.outageCause`, `outage.outageType`                     | `asn=27653` returns exactly the Digicel Haiti outage; `location=SZ` the Eswatini one                                       |
+| `traffic_anomalies?dateRange=1d&status=VERIFIED&asn=<n>` / `&location=<CC>` | `result.trafficAnomalies[]`      | `uuid`, `status`, `type` (`AS`/`LOCATION`), `startDate`, `endDate` (nullable)                                                  | `asn=136442` and `location=CG` each return only their own anomaly                                                          |
+| `entities/asns/ip?ip=<ip>`                                                  | `result.asn` (object, not array) | `asn` (number), `name`                                                                                                         | `140.82.121.4` → `{ asn: 36459, name: "GITHUB" }`                                                                          |
+| `bgp/hijacks/events?involvedAsn=<n>&dateRange=1d`                           | `result.events[]`                | `id` (number), `min_hijack_ts`, `max_hijack_ts`, `confidence_score`, `hijacker_asn`, `victim_asns[]`, `prefixes[]`, `is_stale` | snake_case here, camelCase above; `involvedAsn=8075` returned a real event (dropped by the `is_stale` filter, as intended) |
+| `bgp/leaks/events?involvedAsn=<n>&dateRange=1d`                             | `result.events[]`                | `id` (number), `min_ts`, `max_ts`, `detected_ts`, `finished`, `leak_asn`, `leak_seg[]`                                         | `involvedAsn=11878` returns its leak                                                                                       |
+
+Notes:
+
+- Annotation/anomaly timestamps are `Z`-suffixed UTC; **BGP timestamps are not** (`"2026-10-05T10:41:13.529"`). `newestFirst` sorts them as strings, which is fine, but anything that parses `RadarBgpEvent.startedAt` as a `Date` reads it as local time.
+- Outage items also carry `asns[]`, `locations[]`, `entities[]`, `eventType`, `linkedUrl`; BGP responses carry a sibling `asn_info[]` and a `result_info` page block. None are used.
+- `annotations/outages` and `traffic_anomalies` return an empty array for a quiet ASN or country, which is the normal case (AS134674/IN was empty), so an empty list is not evidence of a parsing bug.
+- One call during this session came back as an HTML Cloudflare error page instead of JSON. `attempt()` catches the parse failure and records it in `errors[]`, so a flaky call degrades to "no data" rather than failing the check.
 
 ## Config / tooling
 

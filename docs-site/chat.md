@@ -7,17 +7,19 @@ description: "Every chat command with example phrasings and the replies they pro
 
 There are seven things the chat can do. You never type a command — you say what you want, and the model picks the matching tool.
 
-| Say something like | Tool | What happens |
-|---|---|---|
-| "is github.com down?" | `diagnose` | runs one check, shows a card |
-| "watch example.com every 10 minutes" | `watch` | re-checks on a schedule, alerts on change |
-| "stop watching example.com" | `unwatch` | deletes the watch |
-| "what have I checked recently?" | `history` | lists your past checks |
-| "send alerts for example.com to &lt;webhook&gt;" | `setWebhook` | Slack / Discord alerts |
-| "email alerts for example.com to me@example.com" | `setEmail` | email alerts |
-| "mute example.com for 90 minutes" | `mute` | keeps checking, stops alerting |
+| Say something like                               | Tool         | What happens                                   |
+| ------------------------------------------------ | ------------ | ---------------------------------------------- |
+| "is github.com down?"                            | `diagnose`   | runs one check, shows a card                   |
+| "watch example.com every 10 minutes"             | `watch`      | re-checks on a schedule, alerts on change      |
+| "stop watching example.com"                      | `unwatch`    | deletes the watch                              |
+| "what have I checked recently?"                  | `history`    | lists your past checks                         |
+| "send alerts for example.com to &lt;webhook&gt;" | `setWebhook` | Slack / Discord alerts                         |
+| "email alerts for example.com to me@example.com" | `setEmail`   | email alerts, when the deployment has a sender |
+| "mute example.com for 90 minutes"                | `mute`       | keeps checking, stops alerting                 |
 
-Everything below is a real transcript from a local dev server on 5 October 2026.
+Everything below is a real transcript from the [live demo](https://cf-ai-isitme.patelkashishpatel032.workers.dev)
+on 5 October 2026, except the email example, which is a local run — the reason is
+in that section.
 
 > [!IMPORTANT] Two different kinds of text
 > The **chip** or **card** under your message is the tool's own output — fixed text, written by the code. The sentence after it is written by the model, so its exact wording changes from run to run. The verdict itself never does: it comes from rules, not from the model. See [How it works](/how-it-works).
@@ -29,14 +31,14 @@ Name a site and it checks it. It won't ask you to confirm first.
 **"is github.com down?"**
 
 ```
-github.com                                      14.8s   Healthy 87%
+github.com                                       6.0s   Healthy 95%
 It's up. Not you, not them.
-  Cloudflare's edge (MAA) got HTTP 200 in 1476ms
-  5/5 regions reachable (median 665ms)
-  DNS resolved to 1 address in 166ms
-  Your browser could reach it in 106ms
-  4 checks in the last 10 min, 0 failing
-  Radar: no data (no RADAR_TOKEN)
+  Cloudflare's edge (MXP) got HTTP 200 in 74ms
+  5/5 regions reachable (median 54ms)
+  DNS resolved to 1 address in 3ms
+  Your browser could reach it in 181ms
+  6 checks in the last 10 min, 0 failing
+  No ongoing Radar outages or anomalies for your network
   All 5 outside probes reached it
 ```
 
@@ -53,28 +55,33 @@ Add what the page must contain and it is checked too. A reachable site whose pag
 **"check example.com and make sure the page contains the text Example Domain"**
 
 ```
-example.com                                     30.8s   Healthy 87%
+example.com                                      6.2s   Healthy 95%
 It's up. Not you, not them.
-  Cloudflare's edge (MAA) got HTTP 200 in 4074ms
-  5/5 regions reachable (median 3064ms)
-  DNS resolved to 4 addresses in 180ms, DNSSEC-validated
-  Your browser could reach it in 130ms
+  Cloudflare's edge (ORD) got HTTP 200 in 5ms
+  5/5 regions reachable (median 8ms)
+  DNS resolved to 4 addresses in 3ms, DNSSEC-validated
+  Your browser could reach it in 135ms
+  9 checks in the last 10 min, 0 failing
+  No ongoing Radar outages or anomalies for your network
   All 5 outside probes reached it
 ```
 
-> example.com is up everywhere, including from your network, and the page contains the Example Domain text.
+> example.com is up everywhere, including from your network, and the page contains the expected text.
 
-The same check with text that isn't on the page (`expect=Totally Not Here`, run through the [HTTP API](/api) — same rules, same card) comes back:
+**"check example.com and make sure the page contains the text Totally Not Here"** — same site, text that isn't on the page:
 
 ```
-example.com                                             Partly broken · expected text missing 73%
+example.com                                      7.5s   Partly broken · expected text missing 80%
 It answers, but the page looks broken.
   Expected text not found on the page
-  Cloudflare's edge (MAA) got HTTP 200 in 1677ms
-  5/5 regions reachable (median 576ms)
-  DNS resolved to 3 addresses in 155ms, DNSSEC-validated
+  Cloudflare's edge (ORD) got HTTP 200 in 6ms
+  5/5 regions reachable (median 6ms)
+  DNS resolved to 4 addresses in 2ms, DNSSEC-validated
+  Your browser could reach it in 169ms
   All 5 outside probes reached it
 ```
+
+> example.com is up but is missing the text "Totally Not Here" that you requested.
 
 Details: the match is case-insensitive, against the raw response body, in the first 64 KB only. Up to 200 characters. It is a substring match, not a regular expression. A watch can carry a keyword too, which turns "is it up" into "is it serving the right page".
 
@@ -86,7 +93,7 @@ Details: the match is case-insensitive, against the raw response body, in the fi
 Watching example.com every 10 min. Alerts land in the sidebar.
 ```
 
-> I'm now monitoring example.com every 10 minutes. I'll alert you if its status changes.
+> I'm now monitoring example.com every 10 minutes.
 
 What the rules do with the interval and the limits:
 
@@ -96,7 +103,7 @@ What the rules do with the interval and the limits:
 - Alerts appear in the app's sidebar by default. Webhook and email are extra, below.
 - Your watches are listed in the sidebar, not by a chat tool — there's nothing to ask for them.
 
-Alerts are deliberately slow to fire: a status change must be confirmed by a second check a minute later before you hear about it, and verdicts that blame *your* side never alert at all. [Watching and alerts](/watching) has the full rules, the uptime percentage and the daily digest.
+Alerts are deliberately slow to fire: a status change must be confirmed by a second check a minute later before you hear about it, and verdicts that blame _your_ side never alert at all. [Watching and alerts](/watching) has the full rules, the uptime percentage and the daily digest.
 
 ### Watch until it recovers
 
@@ -108,7 +115,7 @@ For the "I'm waiting for this to come back" case. The watch deletes itself once 
 Watching example.com every 5 min. Alerts land in the sidebar.
 ```
 
-> Now monitoring example.com every 5 minutes until recovered.
+> I'm now watching example.com every 5 minutes until it recovers.
 
 The chip doesn't mention the one-shot part — it's in the watch, and the recovery alert is the last thing that watch ever sends.
 
@@ -131,10 +138,11 @@ If nothing matches, the chip reads `Nothing matched that watch.`
 **"what have I checked recently?"**
 
 ```
-● github.com   Healthy                       10/5/2026, 2:09:41 PM
+● example.com   Healthy                      10/5/2026, 5:53:04 PM
+● github.com    Healthy                      10/5/2026, 5:52:25 PM
 ```
 
-> You've checked github.com recently and it was HEALTHY with 87% certainty.
+> You've recently checked github.com and example.com, and both were healthy from your network.
 
 Each row links to that check's full report. Newest first, 10 by default, 20 at most, and you can narrow it to one domain ("what have I checked for github.com"). Your device keeps its last 50.
 
@@ -148,7 +156,7 @@ Paste the webhook URL into the sentence.
 Webhook updated.
 ```
 
-> Slack alerts for example.com are now set up with your webhook.
+> Slack webhook alerts are now set up for example.com.
 
 Rules on the URL, because the server will be the one fetching it:
 
@@ -162,18 +170,30 @@ You can also give the webhook when you create the watch: "watch example.com ever
 
 ## Email alerts
 
-**"email alerts for example.com to alerts@example.com"**
+Email only works on a deployment that has a sender address, and nothing in the
+hosted demo does: `EMAIL_FROM` ships as the placeholder `alerts@isitme.example`,
+which Cloudflare Email Routing refuses. So the tool refuses up front rather than
+storing an address that would never receive anything.
+
+**"email alerts for example.com to alerts@example.com"** (a local run — the gate
+is the same wherever `EMAIL_FROM` is unset):
 
 ```
-Done
+email alerts are not configured on this deployment: set the EMAIL_FROM variable to an address on a zone with Cloudflare Email Routing. Webhooks and in-app alerts work.
 ```
 
-> Email alerts are now set up for example.com to alerts@example.com.
+> Email alerts aren't available on this deployment. You can use a webhook URL or in-app alerts instead.
 
-The chip just says `Done` — the tool returns the address, and the model's sentence is what repeats it back.
+On a copy that _does_ set `EMAIL_FROM` the chip just says `Done` — the tool
+returns the address, and the model's sentence is what repeats it back.
 
 > [!WARNING] Email delivery is the one feature that depends on the deployment
-> Email goes out through Cloudflare Email Routing, which **only delivers to verified addresses on a zone you control**. On a copy with no `EMAIL` binding, the address is stored and nothing is ever sent. A bad address is refused up front with `invalid email address`. [Watching and alerts](/watching) covers the setup; [Self-hosting](/self-hosting) covers the binding.
+> Cloudflare Email Routing sends only **from a zone you own** and only **to
+> verified destination addresses** on it. Both halves are setup you have to do,
+> which is why webhooks are the easier path. A malformed address is refused
+> before any of that, with `invalid email address`. [Watching and alerts](/watching)
+> covers the rules; [Self-hosting](/self-hosting) covers `EMAIL_FROM` and the
+> binding.
 
 ## Mute a watch
 
@@ -185,7 +205,7 @@ For planned maintenance: keep checking, stop telling me.
 Done
 ```
 
-> Alerts for example.com are muted for 90 minutes.
+> The alerts for example.com are now muted for the specified duration.
 
 - Checks keep running while muted, so the history and the uptime number stay complete.
 - Maximum 7 days. `0` minutes unmutes.

@@ -49,13 +49,34 @@ jobs:
           verdict=$(get "$SITE/api/v1/check?url=example.com" | jq -r '.verdict // "none"')
           echo "example.com -> $verdict"
           case "$verdict" in
-            HEALTHY|SLOW|PARTIAL|INCONCLUSIVE) ;;
+            # No INCONCLUSIVE: that is "no vantage answered", not a healthy site.
+            HEALTHY|SLOW|PARTIAL) ;;
             *) echo "unexpected verdict for a healthy site"; exit 1 ;;
           esac
 
           # The SSRF guard is the one thing that must never regress in production.
           guard=$(get -o /dev/null -w '%{http_code}' "$SITE/api/v1/check?url=http://169.254.169.254")
           test "$guard" = 400 || { echo "guard returned $guard, expected 400"; exit 1; }
+
+      # The chat path needs the real Workers AI, which dev:local can't provide, so this drives
+      # the deployed app in a real browser. It lives here, after the smoke test, because here it
+      # tests the build that was just shipped and can therefore gate.
+      - name: Browser end-to-end test
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        env:
+          E2E_URL: ${{ env.SITE }}
+          E2E_OUT: ${{ runner.temp }}
+        # Playwright is not a project dependency: it carries a browser download.
+        run: |
+          npm i --no-save playwright
+          npx playwright install --with-deps chromium
+          npm run e2e
+      - uses: actions/upload-artifact@v7
+        if: always() && env.CLOUDFLARE_API_TOKEN != ''
+        with:
+          name: e2e-screenshots
+          path: ${{ runner.temp }}/e2e-*.png
+          if-no-files-found: ignore
 
       - name: Explain the no-op
         if: env.CLOUDFLARE_API_TOKEN == ''

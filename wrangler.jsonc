@@ -45,6 +45,8 @@
   "analytics_engine_datasets": [
     { "binding": "ANALYTICS", "dataset": "isitme_checks" }
   ],
+  // Email alerts stay off until this is an address on a zone with Email Routing.
+  "vars": { "EMAIL_FROM": "alerts@isitme.example" },
   "send_email": [{ "name": "EMAIL" }],
   "observability": { "enabled": true }
 }

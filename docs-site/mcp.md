@@ -17,21 +17,21 @@ The endpoint is streamable HTTP, no auth, no key:
 POST /mcp
 ```
 
-Once the demo is deployed, that is <code>{{ SITE_URL }}/mcp</code>. For a local copy it is whatever `npm run dev` prints, plus `/mcp`.
+On the hosted demo that is <code>{{ SITE_URL }}/mcp</code>. For a local copy it is whatever `npm run dev` prints, plus `/mcp`.
 
 > [!NOTE] Examples on this page
 > The hosted app is live, so the configs below point at it. Swap in your own base URL if you self-host; nothing else changes.
 
 ## Connect Claude Code
 
-One command — swap in your own base URL (this was run against a local dev server):
+One command — swap in your own base URL if you self-host:
 
 ```sh
-claude mcp add --transport http isitme http://localhost:5192/mcp
+claude mcp add --transport http isitme https://cf-ai-isitme.patelkashishpatel032.workers.dev/mcp
 ```
 
 ```
-Added HTTP MCP server isitme with URL: http://localhost:5192/mcp to local config
+Added HTTP MCP server isitme with URL: https://cf-ai-isitme.patelkashishpatel032.workers.dev/mcp to local config
 File modified: ~/.claude.json [project: …]
 ```
 
@@ -42,7 +42,7 @@ claude mcp list
 ```
 
 ```
-isitme: http://localhost:5192/mcp (HTTP) - ✔ Connected
+isitme: https://cf-ai-isitme.patelkashishpatel032.workers.dev/mcp (HTTP) - ✔ Connected
 ```
 
 ```sh
@@ -54,7 +54,9 @@ isitme:
   Scope: Local config (private to you in this project)
   Status: ✔ Connected
   Type: http
-  URL: http://localhost:5192/mcp
+  URL: https://cf-ai-isitme.patelkashishpatel032.workers.dev/mcp
+
+To remove this server, run: claude mcp remove isitme -s local
 ```
 
 The default scope is `local`: this project, only you. Two alternatives:
@@ -116,12 +118,12 @@ No `type` field, no `command`, no credentials. Restart Cursor, or reload the MCP
 
 ## The four tools
 
-| Tool | Input | Returns |
-|---|---|---|
-| `check_site` | `url`, optional `expect` | The finished verdict. Waits for the whole check. |
-| `start_check` | `url`, optional `expect` | `{ ok, runId, host }` immediately. |
-| `get_check` | `runId` | `{ status: "running" }` or the finished verdict. |
-| `get_report` | `host`, `id` | The full report: every piece of evidence. |
+| Tool          | Input                    | Returns                                          |
+| ------------- | ------------------------ | ------------------------------------------------ |
+| `check_site`  | `url`, optional `expect` | The finished verdict. Waits for the whole check. |
+| `start_check` | `url`, optional `expect` | `{ ok, runId, host }` immediately.               |
+| `get_check`   | `runId`                  | `{ status: "running" }` or the finished verdict. |
+| `get_report`  | `host`, `id`             | The full report: every piece of evidence.        |
 
 `url` is 1–2048 characters: a bare domain, a full URL with a path, or an IP. `expect` is 1–200 characters the page must contain. They are the same schemas the [HTTP API](/api) uses.
 
@@ -129,7 +131,7 @@ Summaries by default, detail on request: the first three tools return a verdict 
 
 ### check_site
 
-The straightforward one. It runs DNS from two resolvers, Cloudflare's edge, five regions, Globalping, Radar and the vendor's status page, then the rules, then the explanation — so it takes 15–25 seconds and waits up to two minutes before giving up.
+The straightforward one. It runs DNS from two resolvers, Cloudflare's edge, five regions, Globalping, Radar and the vendor's status page, then the rules, then the explanation — so it takes 5–15 seconds and waits up to two minutes before giving up.
 
 > **Prompt:** Is example.com down, or is it just me?
 
@@ -138,22 +140,21 @@ The assistant calls `check_site { "url": "example.com" }` and gets:
 ```json
 {
   "ok": true,
-  "runId": "ff0a1751-e61e-4e75-ab58-710523d8e4e0",
+  "runId": "eae576cc-71d0-4222-b42b-0948b2b6ff8a",
   "host": "example.com",
   "verdict": "HEALTHY",
-  "confidence": 0.7,
+  "confidence": 0.85,
   "signals": [
-    "Cloudflare's edge (MAA) got HTTP 200 in 2212ms",
-    "5/5 regions reachable (median 1656ms)",
-    "DNS resolved to 4 addresses in 144ms",
-    "Only one Cloudflare location answered",
-    "11 checks in the last 10 min, 0 failing",
-    "Radar: no data (no RADAR_TOKEN)",
+    "Cloudflare's edge (ORD) got HTTP 200 in 7ms",
+    "5/5 regions reachable (median 6ms)",
+    "DNS resolved to 4 addresses in 3ms, DNSSEC-validated",
+    "12 checks in the last 10 min, 0 failing",
+    "No ongoing Radar outages or anomalies for your network",
     "All 5 outside probes reached it"
   ],
   "provider": "Cloudflare",
-  "explanation": "The site is reachable from all locations. Your browser result is not available. All outside probes and Cloudflare's edge reached the site. …",
-  "reportPath": "/r/example.com/ff0a1751-e61e-4e75-ab58-710523d8e4e0"
+  "explanation": "The site is reachable from all locations. …",
+  "reportPath": "/r/example.com/eae576cc-71d0-4222-b42b-0948b2b6ff8a"
 }
 ```
 
@@ -176,23 +177,25 @@ Use these when a 25-second tool call is awkward, so the assistant can do somethi
 > **Prompt:** Kick off checks on example.com and github.com, then tell me both results.
 
 ```
-start_check { "url": "example.com" }
-→ { "ok": true, "runId": "af999c2b-5e8d-48a8-ba1e-99d71842ea3b", "host": "example.com" }
+start_check { "url": "github.com" }
+→ { "ok": true, "runId": "ac279401-b385-48f3-8301-ce91af89b687", "host": "github.com" }
 
-get_check { "runId": "af999c2b-5e8d-48a8-ba1e-99d71842ea3b" }
-→ { "status": "running", "runId": "af999c2b-5e8d-48a8-ba1e-99d71842ea3b", "host": "example.com" }
+get_check { "runId": "ac279401-b385-48f3-8301-ce91af89b687" }
+→ { "status": "running", "runId": "ac279401-b385-48f3-8301-ce91af89b687", "host": "github.com" }
 
-… 20 seconds later …
+… poll again until it is done …
 
-get_check { "runId": "af999c2b-5e8d-48a8-ba1e-99d71842ea3b" }
-→ { "ok": true, "verdict": "HEALTHY", "confidence": 0.7, "signals": [ … ], "reportPath": "/r/example.com/af999c2b-…" }
+get_check { "runId": "ac279401-b385-48f3-8301-ce91af89b687" }
+→ { "ok": true, "verdict": "HEALTHY", "confidence": 0.85, "signals": [ … ], "reportPath": "/r/github.com/ac279401-…" }
 ```
 
 > [!IMPORTANT] `get_check` only sees runs from the same session
 > Runs are stored per MCP session. A `runId` from another session — another editor window, or a reconnect after a restart — answers:
+>
 > ```json
 > { "error": "unknown runId for this session" }
 > ```
+>
 > with `isError: true`. If that happens, start the check again. Reports, unlike runs, are permanent and visible to everyone: `get_report` works across sessions and from any client.
 
 ### get_report
@@ -202,20 +205,20 @@ Everything the rules looked at. Reach for it when the verdict alone isn't enough
 > **Prompt:** It said DOWN_REGIONAL. Which regions failed, and what did DNS say?
 
 ```
-get_report { "host": "example.com", "id": "ff0a1751-e61e-4e75-ab58-710523d8e4e0" }
+get_report { "host": "example.com", "id": "eae576cc-71d0-4222-b42b-0948b2b6ff8a" }
 ```
 
-The `host` and `id` are the two segments of the `reportPath` a check hands back. The result is the full report object — `evidence` (`target`, `user`, `dns`, `dnsAlt`, `edge`, `root`, `alt`, `regions`, `globalping`, `radar`, `crowd`, `browser`, `provider`, `providerStats`, `statusPage`, `cfStatus`, `baseline`), plus `classification`, `explanation` and `extraChecks`. The healthy example above came back as 6.8 KB of JSON, so it is a deliberate second step rather than something to call on every check.
+The `host` and `id` are the two segments of the `reportPath` a check hands back. The result is the full report object — `evidence` (`target`, `user`, `dns`, `dnsAlt`, `edge`, `root`, `alt`, `regions`, `globalping`, `radar`, `crowd`, `browser`, `provider`, `providerStats`, `statusPage`, `cfStatus`, `baseline`), plus `classification`, `explanation` and `extraChecks`. The healthy example above came back as 6.9 KB of JSON, so it is a deliberate second step rather than something to call on every check.
 
 Errors are plain: `{ "error": "not found" }` for an unknown id, `{ "error": "expired", "retentionDays": 30 }` for one older than 30 days, `{ "error": "bad host" }` for a host that isn't a hostname.
 
 ## What MCP checks cannot tell you
 
-The web app runs a probe inside your browser, and that probe is the half of the evidence that proves the problem is *you*. An MCP client has no browser, so:
+The web app runs a probe inside your browser, and that probe is the half of the evidence that proves the problem is _you_. An MCP client has no browser, so:
 
 - <Verdict v="LIKELY_YOUR_NETWORK" /> and <Verdict v="ISP_OUTAGE" /> never come back from an MCP check. Both need a vantage on your own machine that failed while the servers succeeded.
-- The caller's network is not recorded either, so Radar cannot look up outages for your ISP or country. `Radar: no data` in the example above is a missing token on the dev machine; with a token, an MCP check still only gets target-side Radar evidence.
-- Confidence caps lower without a browser vantage — about 0.7 for a healthy verdict instead of 0.95.
+- The caller's network is not recorded either — `evidence.user` is empty on a report an MCP check produced — so Radar cannot look up outages for your ISP or country. An MCP check gets target-side Radar evidence only, which is what the `No ongoing Radar outages or anomalies for your network` signal above is reporting.
+- Confidence caps lower without a browser vantage — 0.85 for a healthy verdict instead of 0.95.
 
 So MCP answers "is the site answering, from everywhere we can see" very well. For "is it me", open the app, or send a colleague a [check-from-your-side link](/sharing).
 
@@ -231,29 +234,30 @@ Nothing here is Claude- or Cursor-specific — it is a standard streamable-HTTP 
 
 ```sh
 # 1. initialize, and keep the session id
-curl -si -X POST http://localhost:5192/mcp \
+curl -si -X POST https://cf-ai-isitme.patelkashishpatel032.workers.dev/mcp \
   -H 'content-type: application/json' \
   -H 'accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"curl","version":"1"}}}'
 ```
 
 ```
-HTTP/1.1 200 OK
+HTTP/2 200
 content-type: text/event-stream
-mcp-session-id: 645c50862e98a98132c23c2a4de14a849af02f0489a83da951039c9961949c50
+mcp-session-id: 1ddb0432…
 
 event: message
-data: {"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{"listChanged":true}},"serverInfo":{"name":"isitme","version":"1.1.0"}},"jsonrpc":"2.0","id":1}
+id: V-IF6dFqt-tnt25BnYWQg:0000000000000001
+data: {"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{"listChanged":true}},"serverInfo":{"name":"isitme","version":"1.0.0"}},"jsonrpc":"2.0","id":1}
 ```
 
 ```sh
 # 2. say hello, then list the tools (same session id on every later request)
-SID=645c5086…
-curl -s -X POST http://localhost:5192/mcp -H "mcp-session-id: $SID" \
+SID=1ddb0432…
+curl -s -X POST https://cf-ai-isitme.patelkashishpatel032.workers.dev/mcp -H "mcp-session-id: $SID" \
   -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","method":"notifications/initialized"}'
 
-curl -s -X POST http://localhost:5192/mcp -H "mcp-session-id: $SID" \
+curl -s -X POST https://cf-ai-isitme.patelkashishpatel032.workers.dev/mcp -H "mcp-session-id: $SID" \
   -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 ```
@@ -261,7 +265,14 @@ curl -s -X POST http://localhost:5192/mcp -H "mcp-session-id: $SID" \
 The tool list comes back as `check_site, start_check, get_check, get_report`. Forget the session header and the server says so:
 
 ```json
-{"error":{"code":-32000,"message":"Bad Request: Mcp-Session-Id header is required"},"id":null,"jsonrpc":"2.0"}
+{
+  "error": {
+    "code": -32000,
+    "message": "Bad Request: Mcp-Session-Id header is required"
+  },
+  "id": null,
+  "jsonrpc": "2.0"
+}
 ```
 
 The server is `src/agents/mcp.ts` — a Durable Object (`McpAgent`) that holds one session, with the tool schemas in `src/shared/schemas.ts`.

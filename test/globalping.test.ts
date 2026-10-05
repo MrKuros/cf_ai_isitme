@@ -275,9 +275,10 @@ function ev(okProbes: boolean, globalping: Evidence["globalping"]): Evidence {
     dns: dnsOk,
     dnsAlt: dnsOk,
     edge: probe(okProbes),
-    regions: REGIONS.map(
-      (region): RegionProbe => ({ region, ...probe(okProbes) })
-    ),
+    regions: REGIONS.map((region): RegionProbe => ({
+      region,
+      ...probe(okProbes)
+    })),
     radar: null,
     crowd: null,
     browser: null,

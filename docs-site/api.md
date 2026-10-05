@@ -22,30 +22,28 @@ That box is a plain `fetch` of `/api/v1/check` from your browser — the same re
 ## Base URL
 
 > [!NOTE] Examples on this page
-> Every request below was run for real and the responses are pasted exactly as they came back. Set `$ISITME` to whichever copy you are talking to — the hosted one, or your own:
+> Every request below was run against the hosted demo and the responses are pasted exactly as they came back. Set `$ISITME` to whichever copy you are talking to — the hosted one, or your own:
 
 ```sh
-export ISITME=http://localhost:5173          # npm run dev, whatever port it prints
-# export ISITME=https://isitme.example       # your own deployment
+export ISITME=https://cf-ai-isitme.patelkashishpatel032.workers.dev   # the hosted demo
+# export ISITME=http://localhost:5173                                # npm run dev, whatever port it prints
 ```
 
-(The responses below were captured with it set to `http://localhost:5192`, which is why report links in them point there.)
-
-Once the demo is live its base URL is <code>{{ SITE_URL }}</code>.
+The hosted base URL is <code>{{ SITE_URL }}</code>.
 
 ## Every route
 
-| Route | Method | Returns |
-|---|---|---|
-| [`/api/v1/check`](#check-a-site) | GET | a verdict (waits), or a run id (`wait=0`) |
-| [`/api/v1/runs/:runId`](#poll-a-run) | GET | `{ status: "running" }` or the verdict |
-| [`/api/report/:host/:id`](#reports) | GET | the full report, every piece of evidence |
-| [`/api/report/:host/:id.txt`](#support-bundle) | GET | plain-text support bundle |
-| [`/api/host/:host`](#host-history) | GET | the last 24 h of stored checks for one host |
-| [`/api/trends`](#trending) | GET | hosts lots of networks are reporting right now |
-| [`/badge/:host.svg`](#badge) | GET | an SVG status badge |
-| [`/api/extra-check`](#add-a-check-from-your-side) | POST | records a visitor's own result on a report |
-| [`/mcp`](/mcp) | POST | Model Context Protocol endpoint |
+| Route                                             | Method | Returns                                        |
+| ------------------------------------------------- | ------ | ---------------------------------------------- |
+| [`/api/v1/check`](#check-a-site)                  | GET    | a verdict (waits), or a run id (`wait=0`)      |
+| [`/api/v1/runs/:runId`](#poll-a-run)              | GET    | `{ status: "running" }` or the verdict         |
+| [`/api/report/:host/:id`](#reports)               | GET    | the full report, every piece of evidence       |
+| [`/api/report/:host/:id.txt`](#support-bundle)    | GET    | plain-text support bundle                      |
+| [`/api/host/:host`](#host-history)                | GET    | the last 24 h of stored checks for one host    |
+| [`/api/trends`](#trending)                        | GET    | hosts lots of networks are reporting right now |
+| [`/badge/:host.svg`](#badge)                      | GET    | an SVG status badge                            |
+| [`/api/extra-check`](#add-a-check-from-your-side) | POST   | records a visitor's own result on a report     |
+| [`/mcp`](/mcp)                                    | POST   | Model Context Protocol endpoint                |
 
 Anything else under `/api/` is `404 {"error": "not found"}`. The human pages (`/r/:host/:id`, `/h/:host`, `/trending`, `/c/:host`) are the web app, not the API.
 
@@ -65,17 +63,17 @@ curl -s -X POST "$ISITME/api/v1/check?url=example.com"
 GET /api/v1/check?url=<domain or URL>[&expect=<text>][&wait=0]
 ```
 
-| Parameter | Required | Notes |
-|---|---|---|
-| `url` | yes | 1–2048 characters. A bare domain, a full URL with a path, or an IP literal. |
-| `expect` | no | 1–200 characters the page must contain. Missing text makes the verdict <Verdict v="PARTIAL" sub="expect missing" />. |
-| `wait` | no | `wait=0` returns a run id immediately. Any other value (or none) waits for the result. |
+| Parameter | Required | Notes                                                                                                                |
+| --------- | -------- | -------------------------------------------------------------------------------------------------------------------- |
+| `url`     | yes      | 1–2048 characters. A bare domain, a full URL with a path, or an IP literal.                                          |
+| `expect`  | no       | 1–200 characters the page must contain. Missing text makes the verdict <Verdict v="PARTIAL" sub="expect missing" />. |
+| `wait`    | no       | `wait=0` returns a run id immediately. Any other value (or none) waits for the result.                               |
 
 The explanation follows your `Accept-Language` header; the verdict and signals stay in English. See [languages](#languages).
 
 ### Waiting (the default)
 
-The whole pipeline runs before you get an answer: both resolvers, Cloudflare's edge, five regions, Globalping, Radar, the vendor's status page, then the rules, then the LLM paragraph. **Budget 15–25 seconds** and set a client timeout of at least 30.
+The whole pipeline runs before you get an answer: both resolvers, Cloudflare's edge, five regions, Globalping, Radar, the vendor's status page, then the rules, then the LLM paragraph. **Budget 5–15 seconds** and set a client timeout of at least 30.
 
 ```sh
 curl -s "$ISITME/api/v1/check?url=example.com"
@@ -84,37 +82,36 @@ curl -s "$ISITME/api/v1/check?url=example.com"
 ```json
 {
   "ok": true,
-  "runId": "03026336-e706-46ad-b033-4118bdc6f76b",
+  "runId": "31cb2753-9618-4e44-8388-27fde336b07a",
   "host": "example.com",
   "verdict": "HEALTHY",
-  "confidence": 0.7,
+  "confidence": 0.85,
   "signals": [
-    "Cloudflare's edge (MAA) got HTTP 200 in 1628ms",
-    "5/5 regions reachable (median 519ms)",
-    "DNS resolved to 4 addresses in 146ms, DNSSEC-validated",
-    "Only one Cloudflare location answered",
-    "13 checks in the last 10 min, 0 failing",
-    "Radar: no data (no RADAR_TOKEN)",
+    "Cloudflare's edge (ORD) got HTTP 200 in 5ms",
+    "5/5 regions reachable (median 6ms)",
+    "DNS resolved to 4 addresses in 3ms, DNSSEC-validated",
+    "7 checks in the last 10 min, 0 failing",
+    "No ongoing Radar outages or anomalies for your network",
     "All 5 outside probes reached it"
   ],
   "provider": "Cloudflare",
-  "explanation": "The site is reachable from every location checked. Your browser result is not available, but all outside probes reached it. \nNext steps:\n* Try a hard refresh or private window\n* Clear site data or try another browser\n* Check the page content for issues",
-  "reportPath": "/r/example.com/03026336-e706-46ad-b033-4118bdc6f76b"
+  "explanation": "The site is reachable from every location we checked. Your browser result is not available. \nAll outside probes and regions reached the site successfully.\nNext steps:\n* Try accessing the site yourself to see if it works for you\n* Check the site from a different location or network if possible\n* If issues persist, try troubleshooting page-level issues",
+  "reportPath": "/r/example.com/31cb2753-9618-4e44-8388-27fde336b07a"
 }
 ```
 
-| Field | Always? | Meaning |
-|---|---|---|
-| `ok` | yes | `false` means the request failed, not that the site is down. |
-| `runId` | yes | Also the report id and the workflow instance id. |
-| `host` | yes | Normalised lowercase hostname. |
-| `verdict` | yes | One of [twelve values](/results). |
-| `subtype` | no | Narrows the verdict, e.g. `expect_missing` with `PARTIAL`. |
-| `confidence` | yes | 0–1. |
-| `signals` | yes | The facts that drove the verdict, most important first. |
-| `provider` | no | Who serves the site, when it could be fingerprinted. |
-| `explanation` | yes | The LLM paragraph. The rules already decided; this only puts it in words. |
-| `reportPath` | yes | Path of the human report, `/r/<host>/<id>`. Prefix it with the base URL. |
+| Field         | Always? | Meaning                                                                   |
+| ------------- | ------- | ------------------------------------------------------------------------- |
+| `ok`          | yes     | `false` means the request failed, not that the site is down.              |
+| `runId`       | yes     | Also the report id and the workflow instance id.                          |
+| `host`        | yes     | Normalised lowercase hostname.                                            |
+| `verdict`     | yes     | One of [twelve values](/results).                                         |
+| `subtype`     | no      | Narrows the verdict, e.g. `expect_missing` with `PARTIAL`.                |
+| `confidence`  | yes     | 0–1.                                                                      |
+| `signals`     | yes     | The facts that drove the verdict, most important first.                   |
+| `provider`    | no      | Who serves the site, when it could be fingerprinted.                      |
+| `explanation` | yes     | The LLM paragraph. The rules already decided; this only puts it in words. |
+| `reportPath`  | yes     | Path of the human report, `/r/<host>/<id>`. Prefix it with the base URL.  |
 
 `expect` turns a wrong-but-200 page into a failure:
 
@@ -125,21 +122,21 @@ curl -s "$ISITME/api/v1/check?url=https://example.com&expect=Sign%20in"
 ```json
 {
   "ok": true,
-  "runId": "4ff35ad2-fb4c-4131-b5dd-ac59ebee2a5a",
+  "runId": "43bfdd95-96ff-473f-b219-dcce08f146df",
   "host": "example.com",
   "verdict": "PARTIAL",
   "subtype": "expect_missing",
-  "confidence": 0.73,
+  "confidence": 0.75,
   "signals": [
     "Expected text not found on the page",
-    "Cloudflare's edge (MAA) got HTTP 200 in 1215ms",
-    "5/5 regions reachable (median 548ms)",
-    "DNS resolved to 4 addresses in 146ms, DNSSEC-validated",
+    "Cloudflare's edge (ORD) got HTTP 200 in 6ms",
+    "5/5 regions reachable (median 5ms)",
+    "DNS resolved to 4 addresses in 3ms, DNSSEC-validated",
     "All 5 outside probes reached it"
   ],
   "provider": "Cloudflare",
-  "explanation": "The site is partially reachable, with most vantage points seeing a broken page. …",
-  "reportPath": "/r/example.com/4ff35ad2-fb4c-4131-b5dd-ac59ebee2a5a"
+  "explanation": "The site is partially reachable, with most vantage points seeing a broken page. Every region and outside probe reached the site, but the expected text was not found on the page. \nNext steps:\n* Try a hard refresh or private window\n* Clear site data or try another browser\n* Check the site's status page for updates",
+  "reportPath": "/r/example.com/43bfdd95-96ff-473f-b219-dcce08f146df"
 }
 ```
 
@@ -166,13 +163,13 @@ ftp://example.com    {"ok":false,"error":"Only http and https URLs can be checke
 
 All four are `400`. The same guard re-checks every redirect hop, so a public URL that redirects to a private one stops there too.
 
-| Status | Body | When |
-|---|---|---|
-| `200` | `CheckOutcome` | The check ran. Read `verdict`, not the status code. |
-| `202` | `{ ok, runId, host, pollPath }` | `wait=0`. |
-| `400` | `{ ok: false, error }` | Missing or unusable `url`, `expect` too long, or a target the SSRF guard refuses. |
-| `400` | `{ ok: false, error: "still running after 2 minutes…" }` | The check passed the 2-minute wait. The run continues and its report still lands at `reportPath`, so this one is recoverable. |
-| `429` | `{ ok: false, error: "rate limited" }` | Over 20 requests a minute. |
+| Status | Body                                                     | When                                                                                                                          |
+| ------ | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `200`  | `CheckOutcome`                                           | The check ran. Read `verdict`, not the status code.                                                                           |
+| `202`  | `{ ok, runId, host, pollPath }`                          | `wait=0`.                                                                                                                     |
+| `400`  | `{ ok: false, error }`                                   | Missing or unusable `url`, `expect` too long, or a target the SSRF guard refuses.                                             |
+| `400`  | `{ ok: false, error: "still running after 2 minutes…" }` | The check passed the 2-minute wait. The run continues and its report still lands at `reportPath`, so this one is recoverable. |
+| `429`  | `{ ok: false, error: "rate limited" }`                   | Over 20 requests a minute.                                                                                                    |
 
 If a check somehow runs past two minutes you get `400` with `ok: false` and the error `still running after 2 minutes; the result will appear in the card and report when it finishes` — the run is not lost, the report still lands at `reportPath`.
 
@@ -185,11 +182,11 @@ curl -si "$ISITME/api/v1/check?url=github.com&wait=0"
 ```
 
 ```
-HTTP/1.1 202 Accepted
-access-control-allow-origin: *
+HTTP/2 202
 content-type: application/json
+access-control-allow-origin: *
 
-{"ok":true,"runId":"2c3c882c-d30a-4a2c-924f-dfec0267bc6d","host":"github.com","pollPath":"/api/v1/runs/2c3c882c-d30a-4a2c-924f-dfec0267bc6d"}
+{"ok":true,"runId":"891712bc-05a9-49e8-bde9-dcfecc2bf106","host":"github.com","pollPath":"/api/v1/runs/891712bc-05a9-49e8-bde9-dcfecc2bf106"}
 ```
 
 A bad target still fails fast, with `400` and the same `{ ok: false, error }` shape.
@@ -201,11 +198,15 @@ GET /api/v1/runs/:runId
 ```
 
 ```sh
-curl -s "$ISITME/api/v1/runs/2c3c882c-d30a-4a2c-924f-dfec0267bc6d"
+curl -s "$ISITME/api/v1/runs/891712bc-05a9-49e8-bde9-dcfecc2bf106"
 ```
 
 ```json
-{ "status": "running", "runId": "2c3c882c-d30a-4a2c-924f-dfec0267bc6d", "host": "github.com" }
+{
+  "status": "running",
+  "runId": "891712bc-05a9-49e8-bde9-dcfecc2bf106",
+  "host": "github.com"
+}
 ```
 
 Twenty-five seconds later the same URL returns the finished `CheckOutcome`, identical to what `wait=1` would have given you:
@@ -213,34 +214,33 @@ Twenty-five seconds later the same URL returns the finished `CheckOutcome`, iden
 ```json
 {
   "ok": true,
-  "runId": "2c3c882c-d30a-4a2c-924f-dfec0267bc6d",
+  "runId": "891712bc-05a9-49e8-bde9-dcfecc2bf106",
   "host": "github.com",
   "verdict": "HEALTHY",
-  "confidence": 0.7,
+  "confidence": 0.85,
   "signals": [
-    "Cloudflare's edge (MAA) got HTTP 200 in 1586ms",
-    "5/5 regions reachable (median 791ms)",
-    "DNS resolved to 1 address in 261ms",
-    "Only one Cloudflare location answered",
-    "4 checks in the last 10 min, 0 failing",
-    "Radar: no data (no RADAR_TOKEN)",
+    "Cloudflare's edge (MXP) got HTTP 200 in 16ms",
+    "5/5 regions reachable (median 29ms)",
+    "DNS resolved to 1 address in 2ms",
+    "6 checks in the last 10 min, 0 failing",
+    "No ongoing Radar outages or anomalies for your network",
     "All 5 outside probes reached it"
   ],
-  "provider": "GitHub Pages",
+  "provider": "Cloudflare",
   "explanation": "The site is reachable from all locations. …",
-  "reportPath": "/r/github.com/2c3c882c-d30a-4a2c-924f-dfec0267bc6d"
+  "reportPath": "/r/github.com/891712bc-05a9-49e8-bde9-dcfecc2bf106"
 }
 ```
 
 How to poll: wait 2–5 seconds between polls. Each poll costs a request against the same 20-per-minute budget as the check itself, so a 1-second loop will rate-limit you out of your own result.
 
-| Status | Body | When |
-|---|---|---|
-| `200` | `{ status: "running", … }` | Still going. |
-| `200` | `CheckOutcome` | Finished (`ok` can be `true` or `false`). |
-| `400` | `{ ok: false, error: "bad run id" }` | Not a UUID. |
-| `404` | `{ ok: false, error: "not found" }` | No such run **for you**. |
-| `429` | `{ ok: false, error: "rate limited" }` | Over the limit. |
+| Status | Body                                   | When                                      |
+| ------ | -------------------------------------- | ----------------------------------------- |
+| `200`  | `{ status: "running", … }`             | Still going.                              |
+| `200`  | `CheckOutcome`                         | Finished (`ok` can be `true` or `false`). |
+| `400`  | `{ ok: false, error: "bad run id" }`   | Not a UUID.                               |
+| `404`  | `{ ok: false, error: "not found" }`    | No such run **for you**.                  |
+| `429`  | `{ ok: false, error: "rate limited" }` | Over the limit.                           |
 
 > [!IMPORTANT] Runs belong to the IP that started them
 > Runs are stored on a per-caller shard keyed by a hash of your IP, so **poll from the same IP that started the run**. Someone else's run id returns `404`, which also means a leaked run id is useless to anyone else. Finished runs are kept for about 24 hours; a run still unfinished after 5 minutes answers `{ ok: false, error: "lost track of this run" }`.
@@ -254,22 +254,33 @@ GET /api/report/:host/:id
 Everything the rules looked at, as stored: `evidence` (both DNS lookups, the edge probe, each region, Globalping, Radar, the provider fingerprint, the vendor status page, the browser probe when there was one, baselines), `classification` (verdict, confidence, signals, the confidence `factors`, hints), the `explanation`, and any `extraChecks` visitors added.
 
 ```sh
-curl -s "$ISITME/api/report/github.com/2c3c882c-d30a-4a2c-924f-dfec0267bc6d" | jq keys
+curl -s "$ISITME/api/report/github.com/891712bc-05a9-49e8-bde9-dcfecc2bf106" | jq keys
 ```
 
 ```json
-["classification","createdAt","evidence","explanation","extraChecks","host","id","lang","trigger","url"]
+[
+  "classification",
+  "createdAt",
+  "evidence",
+  "explanation",
+  "extraChecks",
+  "host",
+  "id",
+  "lang",
+  "trigger",
+  "url"
+]
 ```
 
-The response for that healthy check was 4.8 KB. Reports are **public** — anyone with the link can read one — so they never contain your device id or your city. Your network is recorded as its ASN, organisation and country.
+The response for that healthy check was 5.1 KB. Reports are **public** — anyone with the link can read one — so they never contain your device id or your city. Your network is recorded as its ASN, organisation and country.
 
-| Status | Body | When |
-|---|---|---|
-| `200` | the report | — |
-| `400` | `{ "error": "bad host" }` | The host segment isn't a hostname. |
-| `404` | `{ "error": "not found" }` | No such report. |
-| `410` | `{ "error": "expired", "retentionDays": 30 }` | Older than 30 days. A daily alarm drops the body and leaves a tombstone, so an expired report says so instead of 404. |
-| `429` | `{ "error": "rate limited" }` | Over the limit. |
+| Status | Body                                          | When                                                                                                                  |
+| ------ | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `200`  | the report                                    | —                                                                                                                     |
+| `400`  | `{ "error": "bad host" }`                     | The host segment isn't a hostname.                                                                                    |
+| `404`  | `{ "error": "not found" }`                    | No such report.                                                                                                       |
+| `410`  | `{ "error": "expired", "retentionDays": 30 }` | Older than 30 days. A daily alarm drops the body and leaves a tombstone, so an expired report says so instead of 404. |
+| `429`  | `{ "error": "rate limited" }`                 | Over the limit.                                                                                                       |
 
 Note the shape: report errors are `{ error }`, while `/api/v1/*` errors are `{ ok: false, error }`.
 
@@ -278,43 +289,42 @@ Note the shape: report errors are `{ error }`, while `/api/v1/*` errors are `{ o
 Add `.txt` to the same path and you get a plain-text version you can paste into a ticket with your ISP or the site's support team. Same data, no JSON, no app needed to read it.
 
 ```sh
-curl -s "$ISITME/api/report/github.com/2c3c882c-d30a-4a2c-924f-dfec0267bc6d.txt"
+curl -s "$ISITME/api/report/github.com/891712bc-05a9-49e8-bde9-dcfecc2bf106.txt"
 ```
 
 ```
 IsItMe diagnostic report for github.com
-Time (UTC): 2026-10-05T08:48:51.862Z
+Time (UTC): 2026-10-05T12:22:48.814Z
 Target: https://github.com/
-Tested from: AS134674 (TATA PLAY BROADBAND PRIVATE LIMITED), IN
-Verdict: HEALTHY, confidence 70%
+Tested from: AS24560 (Bharti Airtel Limited), IN
+Verdict: HEALTHY, confidence 85%
 
 Signals:
-- Cloudflare's edge (MAA) got HTTP 200 in 1586ms
-- 5/5 regions reachable (median 791ms)
-- DNS resolved to 1 address in 261ms
-- Only one Cloudflare location answered
-- 4 checks in the last 10 min, 0 failing
-- Radar: no data (no RADAR_TOKEN)
+- Cloudflare's edge (MXP) got HTTP 200 in 16ms
+- 5/5 regions reachable (median 29ms)
+- DNS resolved to 1 address in 2ms
+- 6 checks in the last 10 min, 0 failing
+- No ongoing Radar outages or anomalies for your network
 - All 5 outside probes reached it
 
 Vantages:
-- DNS (Cloudflare DoH): ok, rcode 0, 20.207.73.82 (261ms)
-- DNS (Google DoH): ok, rcode 0, 20.207.73.82 (262ms)
-- Cloudflare edge: ok, HTTP 200, colo MAA, 1586ms
-- Region wnam: ok, HTTP 200, colo MAA, 792ms
-- Region enam: ok, HTTP 200, colo MAA, 791ms
-- Region weur: ok, HTTP 200, colo MAA, 643ms
-- Region apac: ok, HTTP 200, colo MAA, 643ms
-- Region oc: ok, HTTP 200, colo MAA, 791ms
+- DNS (Cloudflare DoH): ok, rcode 0, 140.82.121.3 (2ms)
+- DNS (Google DoH): ok, rcode 0, 140.82.121.3 (11ms)
+- Cloudflare edge: ok, HTTP 200, colo MXP, 16ms
+- Region wnam: ok, HTTP 200, colo DFW, 37ms
+- Region enam: ok, HTTP 200, colo ORD, 29ms
+- Region weur: ok, HTTP 200, colo AMS, 35ms
+- Region apac: ok, HTTP 200, colo KIX, 20ms
+- Region oc: ok, HTTP 200, colo MEL, 19ms
 - Your browser: not run
-- Radar: skipped (no RADAR_TOKEN)
-- Provider: GitHub Pages
+- Radar: 0 outage(s), 0 anomaly(ies), 0 BGP event(s); target AS36459 (GITHUB)
+- Provider: Cloudflare
 - Vendor status page: none (All Systems Operational), https://www.githubstatus.com/api/v2/summary.json
 
-Full report: http://localhost:5192/r/github.com/2c3c882c-d30a-4a2c-924f-dfec0267bc6d
+Full report: https://cf-ai-isitme.patelkashishpatel032.workers.dev/r/github.com/891712bc-05a9-49e8-bde9-dcfecc2bf106
 ```
 
-(All five regions report colo `MAA` because this ran on a dev machine, where `locationHint` has no effect. On the deployed app they are five different colos.)
+(The five regions answer from five different colos — DFW, ORD, AMS, KIX and MEL — because `locationHint` is honoured on the deployed app. The edge probe runs wherever you reach Cloudflare from, here MXP.)
 
 The `.txt` form answers in plain text all the way down, including its errors — `not found` with a `404`, and `This report expired (reports are kept 30 days).` with a `410`:
 
@@ -337,21 +347,39 @@ GET /api/host/:host
 The last 24 hours of **already stored** checks for one host. It never starts a probe, so it is cheap and always instant — and empty for a host nobody has checked.
 
 ```sh
-curl -s "$ISITME/api/host/example.com"
+curl -s "$ISITME/api/host/cloudflare.com"
 ```
 
 ```json
 {
-  "host": "example.com",
+  "host": "cloudflare.com",
   "samples": [
-    { "at": 1791190084770, "ms": 1628, "ok": true,  "verdict": "HEALTHY", "colo": "MAA" },
-    { "at": 1791190100852, "ms": 1215, "ok": false, "verdict": "PARTIAL", "colo": "MAA" },
-    { "at": 1791190109427, "ms": 1628, "ok": true,  "verdict": "HEALTHY", "colo": "MAA" }
+    {
+      "at": 1791194355909,
+      "ms": 128,
+      "ok": true,
+      "verdict": "HEALTHY",
+      "colo": "MRS"
+    },
+    {
+      "at": 1791201653473,
+      "ms": 141,
+      "ok": true,
+      "verdict": "HEALTHY",
+      "colo": "MRS"
+    },
+    {
+      "at": 1791202879906,
+      "ms": 140,
+      "ok": true,
+      "verdict": "HEALTHY",
+      "colo": "MRS"
+    }
   ],
   "latest": {
     "verdict": "HEALTHY",
-    "at": 1791190109427,
-    "reportId": "e985954c-8cae-44ee-8c8f-f1e4304e0aa7"
+    "at": 1791202879906,
+    "reportId": "a99d9f2f-196c-433a-ae27-cadbd0b3f64c"
   }
 }
 ```
@@ -389,7 +417,7 @@ curl -s "$ISITME/badge/example.com.svg" | head -c 200
 ```
 
 ```
-<svg xmlns="http://www.w3.org/2000/svg" width="125" height="20" role="img" aria-label="isitme: up 1m ago"><title>isitme: up 1m ago</title>…
+<svg xmlns="http://www.w3.org/2000/svg" width="125" height="20" role="img" aria-label="isitme: up 0m ago"><title>isitme: up 0m ago</title>…
 ```
 
 A host with nothing from the last 24 hours renders `unknown`. `content-type: image/svg+xml; charset=utf-8`, `cache-control: public, max-age=60`, and a bad host segment is a plain-text `400 bad host`.
@@ -413,7 +441,7 @@ Body, at most 16 KB:
 ```json
 {
   "host": "example.com",
-  "reportId": "e985954c-8cae-44ee-8c8f-f1e4304e0aa7",
+  "reportId": "31cb2753-9618-4e44-8388-27fde336b07a",
   "browser": {
     "reachable": false,
     "method": "fetch-no-cors",
@@ -433,16 +461,16 @@ curl -s -X POST "$ISITME/api/extra-check" -H 'content-type: application/json' -d
 {
   "ok": true,
   "check": {
-    "id": "bc695c26-48a3-43ea-a3ec-d11c04fe9d34",
-    "at": 1791190676111,
+    "id": "dafcebcd-4c4e-4f89-b533-2042cc8eda60",
+    "at": 1791203009848,
     "user": {
-      "colo": "MAA",
+      "colo": "MRS",
       "country": "IN",
-      "asn": 134674,
-      "asOrganization": "TATA PLAY BROADBAND PRIVATE LIMITED"
+      "asn": 24560,
+      "asOrganization": "ABTS (Karnataka),"
     },
     "browser": {
-      "at": 1791190676111,
+      "at": 1791203009848,
       "reachable": false,
       "method": "fetch-no-cors",
       "ms": 4800,
@@ -457,40 +485,42 @@ curl -s -X POST "$ISITME/api/extra-check" -H 'content-type: application/json' -d
 
 Every `browser` field is optional and individually validated; unknown fields are dropped, and your IP is stored only as a hash, used to keep one check per voter (a second post replaces your first).
 
-| Status | Body | When |
-|---|---|---|
-| `200` | `{ ok: true, check }` | Recorded. |
-| `400` | `{ "error": "bad json" }` | Body isn't JSON. |
-| `400` | `{ "error": "bad request" }` | `host` or `reportId` missing or malformed. |
-| `400` | `{ "error": "browser.ms must be a number 0..60000" }` | A `browser` field failed validation; the message names it. |
-| `404` | `{ "error": "report not found" }` | No such report for that host. |
-| `409` | `{ "error": "report has enough checks" }` | The report already holds 20 visitor checks. |
-| `413` | `{ "error": "too large" }` | Body over 16 KB. |
-| `429` | `{ "error": "rate limited" }` | Over the limit. |
+| Status | Body                                                  | When                                                       |
+| ------ | ----------------------------------------------------- | ---------------------------------------------------------- |
+| `200`  | `{ ok: true, check }`                                 | Recorded.                                                  |
+| `400`  | `{ "error": "bad json" }`                             | Body isn't JSON.                                           |
+| `400`  | `{ "error": "bad request" }`                          | `host` or `reportId` missing or malformed.                 |
+| `400`  | `{ "error": "browser.ms must be a number 0..60000" }` | A `browser` field failed validation; the message names it. |
+| `404`  | `{ "error": "report not found" }`                     | No such report for that host.                              |
+| `409`  | `{ "error": "report has enough checks" }`             | The report already holds 20 visitor checks.                |
+| `413`  | `{ "error": "too large" }`                            | Body over 16 KB.                                           |
+| `429`  | `{ "error": "rate limited" }`                         | Over the limit.                                            |
 
 ## Rate limits
 
 **20 requests per 60 seconds**, per IP, per bucket. Buckets are independent, so polling a run cannot lock you out of a badge:
 
-| Bucket | Covers |
-|---|---|
-| `api` | `/api/v1/check`, `/api/v1/runs/:id` |
+| Bucket   | Covers                                        |
+| -------- | --------------------------------------------- |
+| `api`    | `/api/v1/check`, `/api/v1/runs/:id`           |
 | `report` | `/api/report/*`, `/api/host/*`, `/api/trends` |
-| `badge` | `/badge/*.svg` |
-| `extra` | `/api/extra-check` |
-| `mcp` | `/mcp` |
+| `badge`  | `/badge/*.svg`                                |
+| `extra`  | `/api/extra-check`                            |
+| `mcp`    | `/mcp`                                        |
 
-Over the limit you get `429` straight away:
+Over the limit you get `429` straight away, with no `Retry-After` header: wait a few seconds and retry. The window is a rolling 60 seconds.
+
+Treat 20 a minute as the budget to design for rather than a wall. The counter is Cloudflare's rate-limiting binding, which is best-effort, and a burst can get through — 25 requests in 12 seconds against the hosted demo were all served:
 
 ```sh
-for i in $(seq 1 22); do curl -s -o /dev/null -w '%{http_code} ' "$ISITME/api/host/github.com"; done
+for i in $(seq 1 25); do curl -s -o /dev/null -w '%{http_code} ' "$ISITME/api/v1/check"; done
 ```
 
 ```
-200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 429 429
+400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 400
 ```
 
-There is no `Retry-After` header: wait a few seconds and retry. The window is a rolling 60 seconds.
+(`400` because the requests have no `?url=`; a rejected request still costs one of the twenty.)
 
 Self-hosting changes this — the limits live in `wrangler.jsonc` (`ratelimits`), so your own copy can be as generous as you like. See [Self-hosting](/self-hosting).
 
@@ -516,11 +546,11 @@ curl -s -H 'accept-language: fr-FR,fr;q=0.9' "$ISITME/api/v1/check?url=example.c
 ```
 
 ```
-Le site est accessible partout. Votre navigateur n'a pas pu être vérifié. Les régions ont répondu avec un temps de réponse médian de 575ms.
-Next steps :
-* Essayez une actualisation de la page
-* Vérifiez avec un autre navigateur
-* Effectuez une recherche avec des mots-clés différents
+Le site est accessible partout. Les régions ont répondu en moins de 10ms.
+Il n'y a rien à faire localement.
+* Essayez de vous connecter au site vous-même
+* Vérifiez les paramètres de votre navigateur
+* Contactez le support du site si nécessaire
 ```
 
 An unsupported or missing language gives English.

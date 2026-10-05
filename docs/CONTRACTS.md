@@ -5,7 +5,7 @@ All shared types live in **`src/shared/types.ts`**. Import them from there, and 
 During wave P0 only the prep step edits it (see Ownership). Outside a wave, new shared fields go there as **optional** fields; mention them in your summary.
 
 Rules for every module: TypeScript strict, sparse comments, starter code style (2 spaces, double quotes, semicolons, no trailing commas).
-No new npm deps, because everything needed is installed. Every stub currently throws `"not implemented"`. Replace the body and keep the exported signature.
+No new npm deps, because everything needed is installed. Every module below is implemented; the signatures here are the contract, so change one here and in the code together.
 
 ## Ownership
 
@@ -37,18 +37,18 @@ Prep added every P3 shared type (all additive / optional), `src/lib/lang.ts` (im
 
 ### Shared types added
 
-| Type / field                                                  | Purpose                                                                                                   |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `GlobalpingHop { hop, host?, ms? }`                           | one traceroute hop                                                                                        |
-| `GlobalpingProbe { continent?, country?, city?, asn?, network?, ok, ms?, status?, error?, hops? }` | one Globalping probe's result; `network` is the probe's AS name                                           |
-| `GlobalpingEvidence { skipped, skipReason?, probes, measurementId?, errors }` | the whole step's result; `skipped: true` when disabled, rate-limited, or every call failed                |
-| `Evidence.globalping?: GlobalpingEvidence \| null`            | corroboration only (see **THE RULE** below)                                                               |
-| `StepName` / `STEP_ORDER` gain `"globalping"`                 | between `regions` and `radar`; `STEP_LABEL` in `DiagnosisCard.tsx` is "Outside probes"                    |
-| `DiagnoseParams.lang?`, `Report.lang?`                        | BCP-47 primary tag the explanation was written in; absent = `"en"`                                        |
-| `AgentState.lang: string \| null`                             | the device's language, from `pickLang` on connect or the user's picker; `null` = `"en"`                   |
-| `AgentState.digestScheduleId: string \| null`                 | `scheduleEvery` id of the daily digest; `null` = off                                                      |
-| `AgentState.lastDigestAt?: number`                            | epoch ms of the last digest sent                                                                          |
-| `DigestSummary { at, hours, watches[] }`                      | one daily digest; each row is `{ watchId, host, verdict?, incidents, uptime }`                            |
+| Type / field                                                                                       | Purpose                                                                                    |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `GlobalpingHop { hop, host?, ms? }`                                                                | one traceroute hop                                                                         |
+| `GlobalpingProbe { continent?, country?, city?, asn?, network?, ok, ms?, status?, error?, hops? }` | one Globalping probe's result; `network` is the probe's AS name                            |
+| `GlobalpingEvidence { skipped, skipReason?, probes, measurementId?, errors }`                      | the whole step's result; `skipped: true` when disabled, rate-limited, or every call failed |
+| `Evidence.globalping?: GlobalpingEvidence \| null`                                                 | corroboration only (see **THE RULE** below)                                                |
+| `StepName` / `STEP_ORDER` gain `"globalping"`                                                      | between `regions` and `radar`; `STEP_LABEL` in `DiagnosisCard.tsx` is "Outside probes"     |
+| `DiagnoseParams.lang?`, `Report.lang?`                                                             | BCP-47 primary tag the explanation was written in; absent = `"en"`                         |
+| `AgentState.lang: string \| null`                                                                  | the device's language, from `pickLang` on connect or the user's picker; `null` = `"en"`    |
+| `AgentState.digestScheduleId: string \| null`                                                      | `scheduleEvery` id of the daily digest; `null` = off                                       |
+| `AgentState.lastDigestAt?: number`                                                                 | epoch ms of the last digest sent                                                           |
+| `DigestSummary { at, hours, watches[] }`                                                           | one daily digest; each row is `{ watchId, host, verdict?, incidents, uptime }`             |
 
 ### `src/lib/globalping.ts` (stub)
 
@@ -122,7 +122,7 @@ export interface DigestWatchInput {
 export function buildDigest(
   inputs: DigestWatchInput[],
   at: number,
-  hours?: number            // default 24
+  hours?: number // default 24
 ): { summary: DigestSummary; text: string } | null;
 ```
 
@@ -194,9 +194,10 @@ list(): Promise<TrendItem[]>
 - `wrangler.jsonc` binds `"send_email": [{ "name": "EMAIL" }]`. `env.d.ts` types it as `SendEmail`, but it may be absent at runtime (local dev, unconfigured account): **always guard with `if (env.EMAIL)`** and fall back silently to in-app + webhook alerts.
 - Email Routing only delivers to verified destination addresses; document that next to the watch email field in the UI.
 - Mute: see `Watch.mutedUntil` above. Unmute = clear the field. Pure helpers in `alerts.ts`: `shouldNotify(watch, now)`, `muteUntil(minutes, now)` (0 clears, capped at `MAX_MUTE_MINUTES` = 7 days). A muted `until:'recovered'` watch still gets removed on recovery; `incidentUpdate` edits still apply.
-- Chat tools: `mute { hostOrId, minutes 0..10080 }` → `{ ok, mutedUntil? }`; `setEmail { hostOrId, email | null }` → `{ ok, watchId, email }`; `watch` takes optional `email` (zod `z.email().max(254)`).
+- Chat tools: `mute { hostOrId, minutes 0..10080 }` → `{ ok, mutedUntil? }`; `setEmail { hostOrId, email | null }` → `{ ok, watchId, email }` (`email: null` always clears; setting one needs a configured sender); `watch` takes optional `email` (zod `z.email().max(254)`).
 - `@callable muteWatch(watchId, minutes): Promise<{ ok, mutedUntil?, error? }>` (client sends `0` to unmute).
-- Email: `alertEmailRaw()` (alerts.ts) builds text/plain MIME, CR/LF stripped from headers. Sender = optional `EMAIL_FROM` var, else `alerts@isitme.example` (must be replaced with an Email Routing domain). Failures only logged.
+- Sender gate: `emailSender(env.EMAIL_FROM)` (alerts.ts) returns the address, or `undefined` when it is unset or still `EMAIL_PLACEHOLDER_FROM` (`alerts@isitme.example`, the `vars.EMAIL_FROM` default in `wrangler.jsonc`). Email Routing rejects the placeholder, so no sender means **no send is attempted**: `emailAlert()` returns early and the alert/digest paths fall back to in-app + webhook. `watch` and `setEmail` refuse an address with `{ ok: false, error: EMAIL_UNCONFIGURED }`, and the system prompt tells the model not to offer email.
+- Email: `alertEmailRaw(from, to, subject, body, now?)` (alerts.ts) builds text/plain MIME, CR/LF stripped from headers. Failures only logged.
 
 ### Uptime (`user-agent.ts`)
 
@@ -226,22 +227,22 @@ list(): Promise<TrendItem[]>
 
 ### Shared types added (all additive / optional, see `src/shared/types.ts`)
 
-| Type / field                                                                  | Purpose                                                                                                             |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `ProviderInfo { id, name, via[] }`                                            | N1 fingerprint. `id` (e.g. `"fastly"`) is also the `ProviderDO` name                                                |
-| `ProviderStats { provider, windowMinutes, otherHosts, otherFailing }`         | N1 blast radius. **Counts only, never other hostnames** (privacy)                                                   |
-| `StatusIncident`, `StatusPageInfo`                                            | N2 vendor status page / R18 cloudflarestatus, normalized from Atlassian Statuspage `summary.json`                   |
+| Type / field                                                                  | Purpose                                                                                                                                                                        |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ProviderInfo { id, name, via[] }`                                            | N1 fingerprint. `id` (e.g. `"fastly"`) is also the `ProviderDO` name                                                                                                           |
+| `ProviderStats { provider, windowMinutes, otherHosts, otherFailing }`         | N1 blast radius. **Counts only, never other hostnames** (privacy)                                                                                                              |
+| `StatusIncident`, `StatusPageInfo`                                            | N2 vendor status page / R18 cloudflarestatus, normalized from Atlassian Statuspage `summary.json`                                                                              |
 | `BrowserEnv`, `BrowserProbe.env?`                                             | N4/N7: `/cdn-cgi/trace` fields (`warp`, `gateway`, `loc`; never `ip`, reports are public), `traceBlocked`, `timeZone`, `tzMismatch`, `ipv6`. Hints only, never verdict drivers |
-| `ProbeResult.providerHeaders?`                                                | lowercase fingerprint header names present on the final hop (list in the type's doc comment)                        |
-| `Evidence.provider?`, `providerStats?`, `statusPage?`, `cfStatus?`, `expect?` | new evidence inputs; `null` = step skipped/failed, `undefined` = older report                                       |
-| `Classification.factors?`, `hints?`, `selfSuspect?`                           | N8 confidence breakdown; user-side next steps; R18 reasons (non-empty = banner + confidence capped at 0.7)          |
-| `StepName` += `"provider"`, `"status"`                                        | `STEP_ORDER` = dns, edge, regions, radar, provider, status, browser, crowd, classify, explain                       |
-| `DiagnoseParams.expect?`, `Watch.expect?`, `Watch.until?: "recovered"`        | R4 keyword; one-shot watches deleted after the confirmed recovery alert                                             |
-| `REPORT_TTL_DAYS = 30`                                                        | R17                                                                                                                 |
-| `HostSample`, `HostHistory`                                                   | per-host sparkline + badge source                                                                                   |
-| `CheckOutcome` (ok) += `subtype?`, `provider?` (`ProviderInfo.name`)          | API/MCP summary                                                                                                     |
-| `RunPoll = { status: "running", runId, host? } \| CheckOutcome`               | `GET /api/v1/runs/:id`, MCP `get_check`                                                                             |
-| `ExportBundle { exportedAt, watches, alerts, history }`                       | `@callable exportData()`                                                                                            |
+| `ProbeResult.providerHeaders?`                                                | lowercase fingerprint header names present on the final hop (list in the type's doc comment)                                                                                   |
+| `Evidence.provider?`, `providerStats?`, `statusPage?`, `cfStatus?`, `expect?` | new evidence inputs; `null` = step skipped/failed, `undefined` = older report                                                                                                  |
+| `Classification.factors?`, `hints?`, `selfSuspect?`                           | N8 confidence breakdown; user-side next steps; R18 reasons (non-empty = banner + confidence capped at 0.7)                                                                     |
+| `StepName` += `"provider"`, `"status"`                                        | `STEP_ORDER` = dns, edge, regions, radar, provider, status, browser, crowd, classify, explain                                                                                  |
+| `DiagnoseParams.expect?`, `Watch.expect?`, `Watch.until?: "recovered"`        | R4 keyword; one-shot watches deleted after the confirmed recovery alert                                                                                                        |
+| `REPORT_TTL_DAYS = 30`                                                        | R17                                                                                                                                                                            |
+| `HostSample`, `HostHistory`                                                   | per-host sparkline + badge source                                                                                                                                              |
+| `CheckOutcome` (ok) += `subtype?`, `provider?` (`ProviderInfo.name`)          | API/MCP summary                                                                                                                                                                |
+| `RunPoll = { status: "running", runId, host? } \| CheckOutcome`               | `GET /api/v1/runs/:id`, MCP `get_check`                                                                                                                                        |
+| `ExportBundle { exportedAt, watches, alerts, history }`                       | `@callable exportData()`                                                                                                                                                       |
 
 Persisted runs from before P1 lack the `provider`/`status` step keys; readers must treat a missing step as `pending` (`DiagnosisCard` skips it, `user-agent.ts` defaults it).
 
@@ -534,7 +535,7 @@ export async function explain(
 - **Input**: the evidence goes in as compact JSON (drop empty arrays).
 - **Output**: markdown under 120 words.
 - `compactEvidence` cuts every `name` and `description` string to 80 chars (vendor-written status-page text) before it reaches the model, and `DROP_KEYS` removes the target-written ones outright (`error`, `cnames`, `title`).
-- The output goes through `filterUngrounded(text, groundingText(evidence, classification))`: sentences naming a provider absent from the evidence are dropped. `groundingText` is the compact evidence minus plumbing that always names Cloudflare/Google (`resolver`, `server` fields, "Cloudflare's edge/locations/probes/WARP/Gateway" wording), minus `globalping` (a third-party probe's own AS name must not ground blame — THE RULE) and minus `cfStatus` unless `selfSuspect` is set. On an AI error or an empty filtered answer it returns `fallbackExplanation(classification)` (templates from `NEXT_STEPS` / `NEXT_STEPS_BY_SUBTYPE`, < 120 words). Never returns `""`, never throws.
+- The output goes through `filterUngrounded(text, groundingText(evidence, classification))`: sentences naming a provider absent from the evidence are dropped, and so are sentences saying "your browser" when the evidence has no browser probe (`"browser":null`, as on every API, CLI and MCP check) — the prompt already forbids it, and a live CLI check proved the model does it anyway. `groundingText` is the compact evidence minus plumbing that always names Cloudflare/Google (`resolver`, `server` fields, "Cloudflare's edge/locations/probes/WARP/Gateway" wording), minus `globalping` (a third-party probe's own AS name must not ground blame — THE RULE) and minus `cfStatus` unless `selfSuspect` is set. On an AI error or an empty filtered answer it returns `fallbackExplanation(classification)` (templates from `NEXT_STEPS` / `NEXT_STEPS_BY_SUBTYPE`, < 120 words). Never returns `""`, never throws.
 - `opts.lang` (a `pickLang` tag) appends one rule asking for that language; `"en"` or absent changes nothing, and the fallback template stays English. See **Wave P3**.
 
 ### `src/lib/net.ts`
@@ -575,6 +576,9 @@ export function decideWatch(
   newId: () => string
 ): WatchDecision;
 export function canAddWatch(watches: Watch[], host: string): string | null; // error text or null
+export const EMAIL_PLACEHOLDER_FROM = "alerts@isitme.example"; // the wrangler.jsonc default
+export function emailSender(from: string | undefined): string | undefined; // undefined = email unavailable
+export const EMAIL_UNCONFIGURED: string; // refusal text, names EMAIL_FROM
 ```
 
 See **Watch logic** below for the semantics.
@@ -718,10 +722,11 @@ Step config for probes: `{ retries: { limit: 2, delay: "1 second", backoff: "exp
    - Skipped when `trigger === "watch" && classification.verdict === previousVerdict`, with `explanation = ""`.
    - Otherwise run `explain(this.env, evidence, classification, { lang: params.lang })` with `{ retries: { limit: 1, delay: "2 seconds" }, timeout: "45 seconds" }`, and set `report.lang = params.lang`.
 10. **`save`** (not a StepName, so no progress events)
-   - Build the `Report`: `evidence.user = publicNetInfo(user)`, `extraChecks: []`, `id = runId`.
-   - `await t.saveReport(report, ownerId)`.
-   - Write an Analytics Engine data point (see below).
-   - Then `await step.reportComplete<DiagnoseResult>({ runId, report, explainSkipped })`.
+
+- Build the `Report`: `evidence.user = publicNetInfo(user)`, `extraChecks: []`, `id = runId`.
+- `await t.saveReport(report, ownerId)`.
+- Write an Analytics Engine data point (see below).
+- Then `await step.reportComplete<DiagnoseResult>({ runId, report, explainSkipped })`.
 
 A step that fails after its retries (edge, regions, globalping, radar, crowd, explain) never fails the run. Catch the error, mark the step `error`, and use `null` or `[]`. Only the guard aborts the run.
 
@@ -813,6 +818,7 @@ dailyDigest(): Promise<void>                                                    
 `checkWatch({ watchId, confirm? })` → `startRun(..., "watch", { watchId, previousVerdict: watch.lastVerdict, wantsBrowser: false })`. On completion, `onWorkflowComplete` calls `decideWatch(watch, verdict, newId)`. There is no separate suppression flag: a run with no usable vantages classifies as INCONCLUSIVE (class `none`), which never alerts.
 
 - The caller always updates `lastCheckedAt` and `lastReportId`; `decideWatch` returns the watch with `lastVerdict` and the pending fields updated.
+- **The first run is a baseline**: with no `lastVerdict` there is no change to confirm, so it only records one (unless the class is `none`) and never alerts. A watch created on an already-down site therefore has no down alert to send; its first alert is the confirmed recovery.
 - **Exactly-once**: the SDK calls `onWorkflowComplete` from a retried workflow step. `lastReportId` (and the run's `done` status) is persisted in the same `setState` as the decision, so a replay with `watch.lastReportId === report.id` or a `done` run only resolves waiters: no second `decideWatch`, alert, email or webhook.
 - **Silent incidents**: `notifyFor(prev, decision, now)` (`alerts.ts`). A down alert dropped by a mute sets `watch.silentIncident`; the matching recovery is dropped too and clears it, even after the mute ended.
 - **Quotas and expiry (R19)**: besides `MAX_WATCHES` per device, `TrendsDO.claimWatch(hashIp, "<agent>:<watchId>", MAX_WATCHES_PER_IP = 10)` caps active watches per client IP (IPv6 /64) across devices; `removeWatch` releases the claim, `onConnect` refreshes the device's claims. A watch whose device has not connected for `WATCH_IDLE_MS` (7 days, `lastSeenAt` in DO storage) is removed at its next `checkWatch`.
@@ -853,19 +859,21 @@ dailyDigest(): Promise<void>                                                    
 
 ## HTTP routes (`src/server.ts`, implemented)
 
-| Route                                                                       | Behavior                                                                                                                                                                                                          |
-| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/agents/user-agent/:deviceId` (WS + HTTP)                                  | `routeAgentRequest`. Any other `/agents/*` path, a bad device id, or a name starting with `api-`/`mcp-` returns 404                                                                                               |
-| `GET /api/v1/check?url=[&expect=][&wait=1]`                                 | rate key `api:<ip>` → `UserAgent("api-" + await hashIp(ip)).checkNow(url, netInfo, "api")` → `CheckOutcome` (200/400/429)                                                                                         |
-| `GET /api/v1/check?url=&wait=0` (P1)                                        | same agent → `startCheck` → **202** `{ ok: true, runId, host, pollPath: "/api/v1/runs/" + runId }` (400 on a bad target)                                                                                          |
-| `GET /api/v1/runs/:id` (P1)                                                 | rate key `api:<ip>` → same `api-<hashIp>` agent → `getRun(id)` → `RunPoll` (200), 404 when unknown to this caller                                                                                                 |
-| `GET /api/report/:host/:id`                                                 | rate key `report:<ip>` → `TargetDO(host).getReportStatus(id)` (P1) → `Report`, **410** `{ error: "expired", retentionDays: REPORT_TTL_DAYS }`, or 404                                                             |
-| `GET /api/report/:host/:id.txt` (P1)                                        | same lookup → `text/plain` `supportBundle(report, url.origin)`; 410/404 as plain text                                                                                                                             |
-| `GET /api/host/:host` (P1)                                                  | rate key `report:<ip>` → `TargetDO(host).hostHistory()` → `HostHistory`. Never probes. `cache-control: public, max-age=60`, CORS `*`                                                                              |
-| `GET /badge/:host.svg` (P1)                                                 | rate key `badge:<ip>`; host decoded + lowercased; `badgeSvg(hostHistory().latest, now)` (`src/lib/badge.ts`; "unknown" when null or > 24 h old). Zero probes (R19). `cache-control: public, max-age=60`, CORS `*` |
-| `POST /api/extra-check` `{ host, reportId, browser: BrowserProbe \| null }` | rate key `extra:<ip>`, 16KB cap → `parseBrowserProbe` (400 on `{ error }`) → `browserVantage` → `appendExtraCheck(reportId, check, hashIp(ip))` (409 `{ error }` when the report is full) → `waitUntil(owner.onExtraCheck(...))` → `{ ok, check }`                                       |
-| `/mcp`, `/mcp/*`                                                            | rate key `mcp:<ip>` → McpAgent                                                                                                                                                                                    |
-| everything else                                                             | static assets / SPA fallback (`run_worker_first` covers only `/agents/*`, `/api/*`, `/mcp*`, and `/badge/*`)                                                                                                      |
+| Route                                                                       | Behavior                                                                                                                                                                                                                                           |
+| --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/agents/user-agent/:deviceId` (WS + HTTP)                                  | `routeAgentRequest`. Any other `/agents/*` path, a bad device id, or a name starting with `api-`/`mcp-` returns 404                                                                                                                                |
+| `GET /api/v1/check?url=[&expect=][&wait=1]`                                 | rate key `api:<ip>` → `UserAgent("api-" + await hashIp(ip)).checkNow(url, netInfo, "api")` → `CheckOutcome` (200/400/429)                                                                                                                          |
+| `GET /api/v1/check?url=&wait=0` (P1)                                        | same agent → `startCheck` → **202** `{ ok: true, runId, host, pollPath: "/api/v1/runs/" + runId }` (400 on a bad target)                                                                                                                           |
+| `GET /api/v1/runs/:id` (P1)                                                 | rate key `api:<ip>` → same `api-<hashIp>` agent → `getRun(id)` → `RunPoll` (200), 404 when unknown to this caller                                                                                                                                  |
+| `GET /api/report/:host/:id`                                                 | rate key `report:<ip>` → `TargetDO(host).getReportStatus(id)` (P1) → `Report`, **410** `{ error: "expired", retentionDays: REPORT_TTL_DAYS }`, or 404                                                                                              |
+| `GET /api/report/:host/:id.txt` (P1)                                        | same lookup → `text/plain` `supportBundle(report, url.origin)`; 410/404 as plain text                                                                                                                                                              |
+| `GET /api/host/:host` (P1)                                                  | rate key `report:<ip>` → `TargetDO(host).hostHistory()` → `HostHistory`. Never probes. `cache-control: public, max-age=60`, CORS `*`                                                                                                               |
+| `GET /badge/:host.svg` (P1)                                                 | rate key `badge:<ip>`; host decoded + lowercased; `badgeSvg(hostHistory().latest, now)` (`src/lib/badge.ts`; "unknown" when null or > 24 h old). Zero probes (R19). `cache-control: public, max-age=60`, CORS `*`                                  |
+| `POST /api/extra-check` `{ host, reportId, browser: BrowserProbe \| null }` | rate key `extra:<ip>`, 16KB cap → `parseBrowserProbe` (400 on `{ error }`) → `browserVantage` → `appendExtraCheck(reportId, check, hashIp(ip))` (409 `{ error }` when the report is full) → `waitUntil(owner.onExtraCheck(...))` → `{ ok, check }` |
+| `/mcp`, `/mcp/*`                                                            | rate key `mcp:<ip>` → McpAgent                                                                                                                                                                                                                     |
+| everything else                                                             | static assets / SPA fallback (`run_worker_first` covers only `/agents/*`, `/api/*`, `/mcp*`, and `/badge/*`)                                                                                                                                       |
+
+Every route carrying a host (`/api/host/:host`, `/api/report/:host/:id[.txt]`, `/badge/:host.svg`, and `POST /api/extra-check`'s `host` field) resolves it through one helper, `hostParam()`, which applies the same `isPublicHostParam` round trip the client uses — so the public-host gate is server-side, not advisory, and `400 { error: "bad host" }` ("bad request" for `extra-check`) is the answer for `localhost`, a private or reserved address, or a bare label like `aaaa`. A public IPv6 literal is accepted in the unbracketed form reports are stored under (`2606:4700::1111`), which is what the helper brackets before the round trip. The gate also bounds `TARGET_DO`, whose constructor persists a Durable Object for every novel name. `scripts/smoke.mjs` asserts it on all four routes.
 
 `RATE_LIMITER` allows 20 requests per 60s per key.
 

@@ -9,6 +9,8 @@ on:
       - ".github/workflows/docs.yml"
       - "package.json"
       - "package-lock.json"
+      # A code change can invalidate a documented snippet, so rebuild on src/** too.
+      - "src/**"
   workflow_dispatch:
 
 permissions:

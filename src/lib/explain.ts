@@ -153,11 +153,24 @@ export function groundingText(
 }
 
 /**
- * Drops every sentence or bullet line that names a provider absent from the evidence JSON.
+ * API, CLI and MCP checks have no browser vantage, so a sentence about the reader's browser is
+ * invented. The system prompt forbids it; GLM still does it on live checks, so the filter enforces
+ * it. Without a probe the key is `"browser":null`, so only an object counts as one.
+ */
+const BROWSER_CLAIM = /\byour browser\b/i;
+const HAS_BROWSER = /"browser":\{/;
+
+/**
+ * Drops every sentence or bullet line that names a provider absent from the evidence JSON, or the
+ * reader's browser when no browser probe is in it.
  * ponytail: name list + word match, a provider the list misses slips through.
  */
 export function filterUngrounded(text: string, evidenceJson: string): string {
   const banned = PROVIDERS.filter((re) => !re.test(evidenceJson));
+  // Only a prose sentence can claim a browser vantage; a bullet naming the browser is advice the
+  // prompt asks for in exactly this case ("suggest the reader try the site themselves"), so the
+  // claim is filtered in the sentence branch alone.
+  const noBrowser = !HAS_BROWSER.test(evidenceJson);
   const clean = (s: string) => !banned.some((re) => re.test(s));
   return text
     .split("\n")
@@ -168,7 +181,7 @@ export function filterUngrounded(text: string, evidenceJson: string): string {
           : null
         : line
             .split(/(?<=[.!?])\s+/)
-            .filter(clean)
+            .filter((s) => clean(s) && !(noBrowser && BROWSER_CLAIM.test(s)))
             .join(" ")
     )
     .filter((line): line is string => line !== null)
@@ -323,6 +336,9 @@ export async function explain(
       typeof text === "string"
         ? filterUngrounded(text, groundingText(evidence, classification))
         : "";
+    // A silent empty branch is how the whole LLM step went missing in production unnoticed.
+    if (!clean)
+      console.error("[explain] empty AI response", JSON.stringify(out));
     return clean || fallbackExplanation(classification);
   } catch (e) {
     console.error("[explain] Workers AI call failed", e);

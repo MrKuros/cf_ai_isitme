@@ -17,15 +17,15 @@ watch example.com every 5 minutes
 
 You can add the pieces in the same sentence, or later:
 
-| Say | What it does |
-|---|---|
-| `watch example.com every 10 minutes` | sets the interval |
-| `watch example.com and alert my Slack hook https://hooks.slack.com/...` | adds a webhook |
-| `email me at you@example.com when example.com goes down` | adds an email address |
-| `watch example.com until it recovers` | one-shot: the watch deletes itself after the recovery alert |
-| `watch example.com and check the page says "Add to cart"` | adds a keyword check |
-| `mute example.com for 2 hours` | silences alerts, keeps checking |
-| `stop watching example.com` | removes the watch |
+| Say                                                                     | What it does                                                |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `watch example.com every 10 minutes`                                    | sets the interval                                           |
+| `watch example.com and alert my Slack hook https://hooks.slack.com/...` | adds a webhook                                              |
+| `email me at you@example.com when example.com goes down`                | adds an email address                                       |
+| `watch example.com until it recovers`                                   | one-shot: the watch deletes itself after the recovery alert |
+| `watch example.com and check the page says "Add to cart"`               | adds a keyword check                                        |
+| `mute example.com for 2 hours`                                          | silences alerts, keeps checking                             |
+| `stop watching example.com`                                             | removes the watch                                           |
 
 Watches, alerts and mute buttons all live in the left sidebar. A watch runs on
 the server, so it keeps going after you close the tab. With the tab open, an
@@ -56,7 +56,7 @@ its slot immediately.
 
 A scheduled check has no browser to ask, so it runs the edge, the five regions,
 DNS, Radar, the status page and the outside probes — but not your device. That
-means a watch can tell you the site is down; it can never tell you it is *your*
+means a watch can tell you the site is down; it can never tell you it is _your_
 network. Those verdicts (<Verdict v="LIKELY_YOUR_NETWORK" />,
 <Verdict v="ISP_OUTAGE" />) only come from a check you run yourself.
 
@@ -87,6 +87,11 @@ Monitoring tools are famous for 3am false alarms. Two guards exist to stop that.
 class. The first one schedules an extra check 60 seconds later instead of
 alerting, and the sidebar shows `confirming Down everywhere…`.
 
+**The first check is the baseline.** It records where the site stands and never
+alerts — there is no previous answer for it to have changed from. So watching a
+site that is _already_ down gets you no "down" alert; the alert you get is the
+"back up" one when it recovers.
+
 **The same counter guards the way back.** Recovery also needs two consecutive up
 checks, so a site that flaps between up and down doesn't alert on every flip.
 
@@ -98,7 +103,7 @@ checker can't tell, you don't get woken up.
 A confirmed down alert opens an **incident** and the sidebar marks the watch
 `incident open`. While it is open:
 
-- A move to a *different* down verdict (say <Verdict v="DOWN_GLOBAL" /> to
+- A move to a _different_ down verdict (say <Verdict v="DOWN_GLOBAL" /> to
   <Verdict v="DNS_FAILURE" />) updates that same alert in place. No second
   notification is sent.
 - The confirmed recovery closes the incident and sends one "back up" alert
@@ -128,7 +133,7 @@ checks you typed by hand.
 Two kinds of run are left out of the ratio entirely:
 
 - Anything in the "neither" class, because it says nothing about the site.
-- A down run where *every* failing vantage was itself broken — no data, or a
+- A down run where _every_ failing vantage was itself broken — no data, or a
   vantage we already know is sick. The site shouldn't be blamed for our probes.
 
 The sidebar tooltip says as much: "Runs caused by our own vantage problems are
@@ -206,14 +211,16 @@ change it later. Alerts and the daily digest both go there as plain text.
 Email is where a self-hosted copy needs the most setup, because Cloudflare's
 send-email binding is deliberately narrow:
 
-1. **The recipient must be a verified destination address** in Cloudflare Email
+1. **The sender must be on a zone you own.** `EMAIL_FROM` ships as
+   `alerts@isitme.example`, a placeholder, not a real domain. Until you set it
+   to an address on your own zone, email alerts are unavailable: asking for one
+   in the chat gets a refusal that names the variable, and alerts and digests
+   skip email rather than attempt a send that would be rejected.
+2. **The recipient must be a verified destination address** in Cloudflare Email
    Routing on your account. There is no way around this — Cloudflare refuses
    anything else, which is what stops a worker being turned into a spam relay.
-   Typing any other address into the chat is accepted by the form and then
-   silently fails to deliver.
-2. **The sender must be on a zone you own.** The default `from` is
-   `alerts@isitme.example`, which is a placeholder, not a real domain. Set an
-   `EMAIL_FROM` variable to an address on your own zone or nothing will send.
+   An unverified address is accepted by the chat and then silently fails to
+   deliver.
 3. The `send_email` binding is already declared in `wrangler.jsonc`, so there is
    nothing to add there.
 
@@ -231,12 +238,12 @@ way. See [Self-hosting](/self-hosting) for the account-side steps.
 
 ## Hosted demo vs your own copy
 
-| | Hosted demo | Your own copy |
-|---|---|---|
-| Intervals, limits, confirm, mute, uptime, digest | same | same |
-| Email alerts | not configured — no verified sender | works once Email Routing and `EMAIL_FROM` are set |
-| Outage data in a watched check | depends on the deployed `RADAR_TOKEN` | reads `no data` until you add a token |
-| Five real regions | yes | only after `npm run deploy`; locally all five run in one colo |
+|                                                  | Hosted demo                           | Your own copy                                                 |
+| ------------------------------------------------ | ------------------------------------- | ------------------------------------------------------------- |
+| Intervals, limits, confirm, mute, uptime, digest | same                                  | same                                                          |
+| Email alerts                                     | not configured — no verified sender   | works once Email Routing and `EMAIL_FROM` are set             |
+| Outage data in a watched check                   | depends on the deployed `RADAR_TOKEN` | reads `no data` until you add a token                         |
+| Five real regions                                | yes                                   | only after `npm run deploy`; locally all five run in one colo |
 
 Next: [Sharing](/sharing) covers handing a result to someone else, and
 [Limits and troubleshooting](/limits) collects the hard numbers.

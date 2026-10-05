@@ -167,6 +167,55 @@ describe("explain: grounding and fallback (R13)", () => {
     );
   });
 
+  it("drops a browser claim when no browser probe is in the evidence (API/CLI/MCP)", () => {
+    // Live bug: GLM wrote "Your browser could reach it." on a CLI check, which has no browser.
+    const cls: Classification = {
+      verdict: "HEALTHY",
+      confidence: 0.85,
+      signals: ["5/5 regions reachable"]
+    };
+    const none = groundingText({ ...evidence, browser: null }, cls);
+    expect(none).toContain('"browser":null');
+    expect(
+      filterUngrounded("It is up. Your browser could reach it.", none)
+    ).toBe("It is up.");
+    // A real probe grounds it again.
+    const some = groundingText(
+      {
+        ...evidence,
+        browser: {
+          at: 1,
+          reachable: true,
+          method: "fetch-no-cors",
+          ms: 12,
+          online: true,
+          controlReachable: true,
+          dns: null
+        }
+      },
+      cls
+    );
+    expect(
+      filterUngrounded("It is up. Your browser could reach it.", some)
+    ).toBe("It is up. Your browser could reach it.");
+  });
+
+  it("keeps next-step bullets that name the browser (advice, not a claim)", () => {
+    // The system prompt asks for exactly this advice when there is no browser vantage, and
+    // NEXT_STEPS.HEALTHY[1]/INCONCLUSIVE[1] word it that way. Banning it left a bare header.
+    const cls: Classification = {
+      verdict: "HEALTHY",
+      confidence: 0.85,
+      signals: ["5/5 regions reachable"]
+    };
+    const none = groundingText({ ...evidence, browser: null }, cls);
+    const text =
+      "It is up. Your browser could reach it.\n\n**Next steps**\n- Open the site in your browser to confirm it works for you\n- If it still fails, try a hard refresh";
+    expect(filterUngrounded(text, none)).toBe(
+      "It is up.\n\n**Next steps**\n- Open the site in your browser to confirm it works for you\n- If it still fails, try a hard refresh"
+    );
+  });
+
   it("explain() filters the AI output and falls back when AI fails", async () => {
     const ai = (run: () => Promise<unknown>) =>
       ({ AI: { run } }) as unknown as Pick<Env, "AI">;

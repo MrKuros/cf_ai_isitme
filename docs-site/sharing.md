@@ -8,9 +8,9 @@ description: "Report links, check-from-your-side links, badges, per-host pages a
 Ways to hand a result to someone else — or ask them to run one from their own
 network.
 
-The `curl` examples below were run against a local dev server, with
-`ISITME=http://localhost:5181`. Point `ISITME` at your own origin to repeat
-them.
+The `curl` examples below were run against the live demo, with
+`ISITME=https://cf-ai-isitme.patelkashishpatel032.workers.dev`. Point `ISITME` at
+your own origin to repeat them.
 
 ## Report links
 
@@ -19,7 +19,7 @@ Every check saves a report at `/r/<host>/<id>`. The card in the chat has a
 the signals, the explanation and the full evidence grid, and nothing they do
 there starts a new check.
 
-What a link does *not* carry: your device id, your IP address or your city. The
+What a link does _not_ carry: your device id, your IP address or your city. The
 report keeps the network's ASN, its organisation name and the country, because
 that is what makes "it's your ISP" verifiable. Visitor checks have their
 identifying key stripped before the report is served.
@@ -45,40 +45,41 @@ same thing at `/api/report/<host>/<id>.txt`. It is plain text, safe to paste int
 a ticket, an email or a chat with someone who will never click a link:
 
 ```console
-$ curl -s "$ISITME/api/report/example.com/a497fe5c-8487-429b-93f1-acb12bf5663a.txt"
+$ curl -s "$ISITME/api/report/example.com/0dfe52e9-d514-4540-af78-5ebb50331bf7.txt"
 IsItMe diagnostic report for example.com
-Time (UTC): 2026-10-05T08:44:47.278Z
+Time (UTC): 2026-10-05T12:26:26.381Z
 Target: https://example.com/
-Tested from: AS134674 (TATA PLAY BROADBAND PRIVATE LIMITED), IN
-Verdict: HEALTHY, confidence 70%
+Tested from: AS24560 (Bharti Airtel Limited), IN
+Verdict: HEALTHY, confidence 85%
 
 Signals:
-- Cloudflare's edge (MAA) got HTTP 200 in 1613ms
-- 5/5 regions reachable (median 572ms)
-- DNS resolved to 4 addresses in 188ms, DNSSEC-validated
-- Only one Cloudflare location answered
-- 12 checks in the last 10 min, 0 failing
-- Radar: no data (no RADAR_TOKEN)
+- Cloudflare's edge (ORD) got HTTP 200 in 7ms
+- 5/5 regions reachable (median 6ms)
+- DNS resolved to 4 addresses in 3ms, DNSSEC-validated
+- 11 checks in the last 10 min, 0 failing
+- No ongoing Radar outages or anomalies for your network
 - All 5 outside probes reached it
 
 Vantages:
-- DNS (Cloudflare DoH): ok, rcode 0, 172.66.147.243 104.20.23.154 2606:4700:10::6814:179a 2606:4700:10::ac42:93f3 (188ms)
-- DNS (Google DoH): ok, rcode 0, 172.66.147.243 104.20.23.154 2606:4700:8395:72db:f242:0:ef6b:ff98 (165ms)
-- Cloudflare edge: ok, HTTP 200, colo MAA, 1613ms
-- Region wnam: ok, HTTP 200, colo MAA, 1031ms
-- Region enam: ok, HTTP 200, colo MAA, 572ms
-- Region weur: ok, HTTP 200, colo MAA, 572ms
-- Region apac: ok, HTTP 200, colo MAA, 572ms
-- Region oc: ok, HTTP 200, colo MAA, 571ms
+- DNS (Cloudflare DoH): ok, rcode 0, 172.66.147.243 104.20.23.154 2606:4700:10::ac42:93f3 2606:4700:10::6814:179a (3ms)
+- DNS (Google DoH): ok, rcode 0, 104.20.23.154 172.66.147.243 2606:4700:10::ac42:93f3 2606:4700:10::6814:179a (65ms)
+- Cloudflare edge: ok, HTTP 200, colo ORD, 7ms
+- Region wnam: ok, HTTP 200, colo DFW, 5ms
+- Region enam: ok, HTTP 200, colo ORD, 7ms
+- Region weur: ok, HTTP 200, colo AMS, 5ms
+- Region apac: ok, HTTP 200, colo KIX, 8ms
+- Region oc: ok, HTTP 200, colo MEL, 6ms
 - Your browser: not run
-- Radar: skipped (no RADAR_TOKEN)
+- Radar: 0 outage(s), 0 anomaly(ies), 0 BGP event(s); target AS13335 (CLOUDFLARENET)
 - Provider: Cloudflare
 
-Full report: http://localhost:5181/r/example.com/a497fe5c-8487-429b-93f1-acb12bf5663a
+Full report: https://cf-ai-isitme.patelkashishpatel032.workers.dev/r/example.com/0dfe52e9-d514-4540-af78-5ebb50331bf7
 ```
 
-That run came from a local dev server, which is why every region reports the same
-colo (`MAA`) and Radar has no token. A deployed copy fills both in.
+`Your browser: not run` because this check came in over the API, which has no
+browser vantage. The five regions report five different colos — DFW, ORD, AMS,
+KIX and MEL — which is what a deployed copy looks like; in local development
+`locationHint` is ignored and all five land in your own colo.
 
 ## "Check from your side" links
 
@@ -87,12 +88,12 @@ report page has **Copy check link**; both give you `/c/<host>?ref=<report id>`. 
 your site is broken.
 
 What they see: a page that says "Someone asked you to run this", their browser
-trying the site from their own network, and a verdict computed for *them* — the
+trying the site from their own network, and a verdict computed for _them_ — the
 same rules, with their network and browser swapped in for yours. No sign-up, no
 install, nothing to explain.
 
 What you get: their result appended to your report, under
-**Visitor results by network**, labelled *self-reported*. It shows reachable or
+**Visitor results by network**, labelled _self-reported_. It shows reachable or
 not, the timing, and their ASN — never their IP or their location.
 
 The rules around it:
@@ -143,19 +144,19 @@ Two consequences of being cache-only:
 The wording collapses twelve verdicts into a handful, because a badge has no room
 to explain whose fault it is:
 
-| Verdict | Badge says |
-|---|---|
-| <Verdict v="HEALTHY" /> | `up`, green |
-| <Verdict v="SLOW" /> | `slow`, amber |
-| <Verdict v="PARTIAL" /> | `partial`, amber |
-| <Verdict v="DOWN_GLOBAL" /> | `down`, red |
-| <Verdict v="DOWN_REGIONAL" /> | `down in some regions`, red |
-| <Verdict v="DNS_FAILURE" /> | `dns failure`, red |
-| <Verdict v="TLS_ERROR" /> | `tls error`, red |
-| <Verdict v="UPSTREAM_OUTAGE" /> | `upstream outage`, red |
-| <Verdict v="BLOCKED" /> | `up (bot wall)`, green |
-| <Verdict v="LIKELY_YOUR_NETWORK" />, <Verdict v="ISP_OUTAGE" /> | `up`, green |
-| <Verdict v="INCONCLUSIVE" /> | `inconclusive`, grey |
+| Verdict                                                         | Badge says                  |
+| --------------------------------------------------------------- | --------------------------- |
+| <Verdict v="HEALTHY" />                                         | `up`, green                 |
+| <Verdict v="SLOW" />                                            | `slow`, amber               |
+| <Verdict v="PARTIAL" />                                         | `partial`, amber            |
+| <Verdict v="DOWN_GLOBAL" />                                     | `down`, red                 |
+| <Verdict v="DOWN_REGIONAL" />                                   | `down in some regions`, red |
+| <Verdict v="DNS_FAILURE" />                                     | `dns failure`, red          |
+| <Verdict v="TLS_ERROR" />                                       | `tls error`, red            |
+| <Verdict v="UPSTREAM_OUTAGE" />                                 | `upstream outage`, red      |
+| <Verdict v="BLOCKED" />                                         | `up (bot wall)`, green      |
+| <Verdict v="LIKELY_YOUR_NETWORK" />, <Verdict v="ISP_OUTAGE" /> | `up`, green                 |
+| <Verdict v="INCONCLUSIVE" />                                    | `inconclusive`, grey        |
 
 The last two rows are the interesting ones. Those verdicts mean the site was fine
 from every server vantage and only the person checking had trouble — which is not
@@ -172,11 +173,12 @@ The data behind it is one call:
 
 ```console
 $ curl -s "$ISITME/api/host/example.com"
-{"host":"example.com","samples":[{"at":1791186945136,"ms":2008,"ok":true,"verdict":"HEALTHY","colo":"MAA"},{"at":1791186971745,"ms":2008,"ok":true,"verdict":"HEALTHY","colo":"MAA"},{"at":1791189887278,"ms":1613,"ok":true,"verdict":"HEALTHY","colo":"MAA"}],"latest":{"verdict":"HEALTHY","at":1791189887278,"reportId":"a497fe5c-8487-429b-93f1-acb12bf5663a"}}
+{"host":"example.com","samples":[{"at":1791202984295,"ms":5,"ok":true,"verdict":"HEALTHY","colo":"ORD"},{"at":1791203172858,"ms":7,"ok":false,"verdict":"PARTIAL","colo":"ORD"},{"at":1791203186381,"ms":7,"ok":true,"verdict":"HEALTHY","colo":"ORD"}],"latest":{"verdict":"HEALTHY","at":1791203186381,"reportId":"0dfe52e9-d514-4540-af78-5ebb50331bf7"}}
 ```
 
-(Trimmed to three samples; the real response had fifteen, one per check in the
-last 24 hours.) Samples
+(Trimmed to the last three samples; the real response had eighteen, one per check
+in the last 24 hours. The `PARTIAL` one is the keyword check from
+[Using the chat](/chat), which found no match.) Samples
 are shared across everyone who checked that host, which is what makes the
 sparkline and the failing-window list worth looking at.
 
@@ -205,12 +207,12 @@ seconds.
 
 ## Hosted demo vs your own copy
 
-| | Hosted demo | Your own copy |
-|---|---|---|
-| Report links, check links, badges, host pages | same | same |
-| 30-day report expiry | same | same (`REPORT_TTL_DAYS` in `src/shared/types.ts`) |
-| Trending | shared across everyone using the demo | only your own traffic, so the 3-network rule will often leave it empty |
-| Report links in alerts | the demo's origin | whichever origin your browser connected from |
+|                                               | Hosted demo                           | Your own copy                                                          |
+| --------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------- |
+| Report links, check links, badges, host pages | same                                  | same                                                                   |
+| 30-day report expiry                          | same                                  | same (`REPORT_TTL_DAYS` in `src/shared/types.ts`)                      |
+| Trending                                      | shared across everyone using the demo | only your own traffic, so the 3-network rule will often leave it empty |
+| Report links in alerts                        | the demo's origin                     | whichever origin your browser connected from                           |
 
 All the paths above are relative, so a report link copied from your own copy
 points at your own copy, and nothing on these pages hardcodes an origin.

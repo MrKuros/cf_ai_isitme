@@ -1,8 +1,11 @@
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import {
   alertEmailRaw,
   canAddWatch,
   decideWatch,
+  EMAIL_PLACEHOLDER_FROM,
+  emailSender,
   MAX_MUTE_MINUTES,
   muteUntil,
   notifyFor,
@@ -217,5 +220,19 @@ describe("alert email", () => {
     expect(head).not.toMatch(/^Bcc:/m);
     expect(head).toContain("Subject: down Bcc: evil@z.dev");
     expect(body).toBe("line1\r\nline2");
+  });
+});
+
+describe("emailSender", () => {
+  it("treats unset and the placeholder as email unavailable", () => {
+    expect(emailSender(undefined)).toBeUndefined();
+    expect(emailSender("")).toBeUndefined();
+    expect(emailSender(EMAIL_PLACEHOLDER_FROM)).toBeUndefined();
+    expect(emailSender("alerts@mine.dev")).toBe("alerts@mine.dev");
+  });
+
+  it("keeps the placeholder in step with wrangler.jsonc", async () => {
+    const cfg = await readFile("wrangler.jsonc", "utf8");
+    expect(cfg).toContain(`"EMAIL_FROM": "${EMAIL_PLACEHOLDER_FROM}"`);
   });
 });

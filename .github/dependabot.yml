@@ -19,7 +19,8 @@ updates:
       react:
         patterns: ["react", "react-dom", "@types/react*", "@vitejs/*"]
       tooling:
-        patterns: ["vite", "vitest", "typescript", "oxlint", "oxfmt", "vitepress*"]
+        patterns:
+          ["vite", "vitest", "typescript", "oxlint", "oxfmt", "vitepress*"]
 
   - package-ecosystem: github-actions
     directory: /

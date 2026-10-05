@@ -4,43 +4,44 @@ description: "All twelve verdicts in plain words, plus confidence, signals and h
 ---
 
 <script setup>
-// Real runs, 5 October 2026, against a local dev server (`npm run dev`).
+// Real runs, 5 October 2026, against the live app.
 const healthy = {
   host: "github.com",
   verdict: "HEALTHY",
-  confidence: 0.87,
-  elapsed: 14.8,
+  confidence: 0.95,
+  elapsed: 10.4,
   signals: [
-    "Cloudflare's edge (MAA) got HTTP 200 in 1476ms",
-    "5/5 regions reachable (median 665ms)",
-    "DNS resolved to 1 address in 166ms",
-    "Your browser could reach it in 106ms",
-    "4 checks in the last 10 min, 0 failing",
-    "Radar: no data (no RADAR_TOKEN)",
+    "Cloudflare's edge (MXP) got HTTP 200 in 46ms",
+    "5/5 regions reachable (median 61ms)",
+    "DNS resolved to 1 address in 2ms",
+    "Your browser could reach it in 495ms",
+    "5 checks in the last 10 min, 0 failing",
+    "No ongoing Radar outages or anomalies for your network",
     "All 5 outside probes reached it"
   ],
   explanation:
-    "The site is reachable from every location we checked. Your browser could reach it in 106ms. All outside probes and regions also reached it successfully.",
+    "The site is reachable from all locations. Your browser could reach it in 495ms. All outside probes and regions also reached it successfully.",
   reportPath: "",
-  note: "A real local run, 5 October 2026."
+  note: "A real run against the live app, 5 October 2026."
 };
 
-const inconclusive = {
+const tls = {
   host: "expired.badssl.com",
-  verdict: "INCONCLUSIVE",
-  confidence: 0.5,
-  elapsed: 18.6,
+  verdict: "TLS_ERROR",
+  confidence: 0.95,
+  elapsed: 9.8,
   signals: [
-    "Only one Cloudflare location answered, and it failed (MAA)",
-    "Cloudflare's edge (MAA) failed: unknown error",
-    "5/5 regions failed (wnam: unknown error, enam: unknown error, weur: unknown error, apac: TLS/certificate error, oc: unknown error)",
-    "DNS resolved to 1 address in 167ms",
-    "No browser result to compare with",
+    "The server answers but its TLS certificate is invalid; browsers will block it, and only the site owner can fix it",
+    "Cloudflare's edge (LHR) failed: HTTP 526",
+    "5/5 regions failed (wnam: HTTP 526, enam: HTTP 526, weur: HTTP 526, apac: HTTP 526, oc: HTTP 526)",
+    "DNS resolved to 1 address in 13ms",
+    "Your browser could not reach it",
     "All 5 outside probes reached it"
   ],
-  explanation: "The site is inconclusive due to not enough evidence.",
+  explanation:
+    "The site has a TLS error, its certificate is invalid, and browsers will block it. Your browser could not reach it, but outside probes did.",
   reportPath: "",
-  note: "A real local run. The certificate on this site is deliberately expired."
+  note: "A real run against the live app. The certificate on this site is deliberately expired."
 };
 </script>
 
@@ -50,25 +51,25 @@ Every check ends in exactly one of twelve verdicts. They are picked by fixed rul
 
 ## All twelve
 
-| Verdict | In one line | Whose problem | Alerts a watch? |
-|---|---|---|---|
-| <Verdict v="HEALTHY" /> | It worked from everywhere, including from you. | nobody's | up |
-| <Verdict v="SLOW" /> | It works, but it's taking far too long. | the site's | up |
-| <Verdict v="BLOCKED" /> | It's up, but it refuses automated checks. | nobody's | up |
-| <Verdict v="DOWN_GLOBAL" /> | It failed from nearly everywhere. | the site's | down |
-| <Verdict v="DOWN_REGIONAL" /> | It failed from some places and worked from others. | the site's | down |
-| <Verdict v="DNS_FAILURE" /> | The name doesn't turn into an address. | the site's | down |
-| <Verdict v="TLS_ERROR" /> | It answers, but its certificate is invalid. | the site's | down |
-| <Verdict v="PARTIAL" /> | It answers, but with the wrong page. | the site's | down |
-| <Verdict v="UPSTREAM_OUTAGE" /> | The site's network provider is mis-routing it. | their provider's | down |
-| <Verdict v="LIKELY_YOUR_NETWORK" /> | Everyone else reaches it. You don't. | yours | never |
-| <Verdict v="ISP_OUTAGE" /> | Same, and your ISP has a known outage. | your ISP's | never |
-| <Verdict v="INCONCLUSIVE" /> | Not enough evidence to say. | unknown | never |
+| Verdict                             | In one line                                        | Whose problem    | Alerts a watch? |
+| ----------------------------------- | -------------------------------------------------- | ---------------- | --------------- |
+| <Verdict v="HEALTHY" />             | It worked from everywhere, including from you.     | nobody's         | up              |
+| <Verdict v="SLOW" />                | It works, but it's taking far too long.            | the site's       | up              |
+| <Verdict v="BLOCKED" />             | It's up, but it refuses automated checks.          | nobody's         | up              |
+| <Verdict v="DOWN_GLOBAL" />         | It failed from nearly everywhere.                  | the site's       | down            |
+| <Verdict v="DOWN_REGIONAL" />       | It failed from some places and worked from others. | the site's       | down            |
+| <Verdict v="DNS_FAILURE" />         | The name doesn't turn into an address.             | the site's       | down            |
+| <Verdict v="TLS_ERROR" />           | It answers, but its certificate is invalid.        | the site's       | down            |
+| <Verdict v="PARTIAL" />             | It answers, but with the wrong page.               | the site's       | down            |
+| <Verdict v="UPSTREAM_OUTAGE" />     | The site's network provider is mis-routing it.     | their provider's | down            |
+| <Verdict v="LIKELY_YOUR_NETWORK" /> | Everyone else reaches it. You don't.               | yours            | never           |
+| <Verdict v="ISP_OUTAGE" />          | Same, and your ISP has a known outage.             | your ISP's       | never           |
+| <Verdict v="INCONCLUSIVE" />        | Not enough evidence to say.                        | unknown          | never           |
 
 "Alerts a watch" is the only thing the verdict name is used for mechanically: a watch alerts you when it crosses between **up** and **down**, and the three "never" verdicts are deliberately silent. [Watching and alerts](/watching) explains why.
 
-> [!NOTE] Five of the twelve have a real example on this page
-> The rest need a real outage to happen while we're watching. Where there's no live run to paste, the section says what the rule requires instead of inventing output. [Limits and troubleshooting](/limits) lists what a local copy can't show you.
+> [!NOTE] Seven of the twelve have a real example on this page
+> Every example below is the output of a real run against the live app, copied across as it came out. The five without one — <Verdict v="DOWN_REGIONAL" />, <Verdict v="UPSTREAM_OUTAGE" />, <Verdict v="LIKELY_YOUR_NETWORK" />, <Verdict v="ISP_OUTAGE" /> and <Verdict v="INCONCLUSIVE" /> — each need something we can't arrange: a site failing from some regions and not others, a BGP hijack covering its prefix, a network problem on our own side, a Radar-reported ISP outage, or evidence thin enough to be undecidable. Those sections say what the rule requires instead of inventing output. [Limits and troubleshooting](/limits) lists what a local copy can't show you.
 
 ## It's working
 
@@ -82,7 +83,7 @@ Every Cloudflare location that answered reached the site, nothing looked slow, a
 
 The headline matters here. **"It's up. Not you, not them."** is only claimed when your own browser reached the site too. With no browser result, the headline drops to "It's up from everywhere we checked" — it will not tell you you're fine if it never tested you.
 
-Confidence starts at 0.70 and gains 0.05 for each vantage that agrees (edge, regions, your browser, DNS), so a full house lands near 0.90. It is capped at 0.70 when only one Cloudflare location answered, which is what always happens on a laptop.
+Confidence starts at 0.70 and gains 0.05 for each vantage that agrees (edge, regions, your browser, DNS), plus 0.05 when Radar data was available — which is how the run above reaches the 0.95 ceiling. It is capped at 0.70 only when a single Cloudflare location answered _and_ there was no browser result; on the live app the five regions land in five different data centres (the <Verdict v="DOWN_GLOBAL" /> example below names them), so that cap is a local-copy situation, where every region runs on the one machine.
 
 ### <Verdict v="SLOW" />
 
@@ -92,30 +93,45 @@ Reachable everywhere, but the edge or the median region took **3 seconds or more
 
 The signals name both the measured time and the threshold, and the sparkline's dashed line is the "usual" it was compared against.
 
+A real run against `http://httpstat.us/503`, on a day that service was struggling. The 404 in it is real too — that service was answering 404 for every path, its own root included, which is why the broken page didn't make this <Verdict v="PARTIAL" /> instead:
+
+```
+httpstat.us                                      Slow 80%
+It's up, but slow.
+  Cloudflare's edge took 10249ms (slow is 3000ms+)
+  Median region response was 9627ms (slow is 3000ms+)
+  Cloudflare's edge, DFW, ORD, AMS, KIX, MEL answered only after a retry
+  (first attempt timed out)
+  Cloudflare's edge (AMS) got HTTP 404 in 10249ms
+  5/5 regions reachable (median 9627ms)
+  DNS resolved to 1 address in 9ms
+```
+
 ### <Verdict v="BLOCKED" />
 
 **What it means for you:** **trust your own browser, not the robot.** The site is up; it just won't talk to automated clients. If the card says your browser reached it, you're fine.
 
 Every Cloudflare location got an answer, and every one of those answers was bot protection rather than the site. Four flavours, shown as the subtype:
 
-| Subtype | What happened |
-|---|---|
-| <Verdict v="BLOCKED" sub="bot challenge" /> | an interactive challenge page |
-| <Verdict v="BLOCKED" sub="firewall block" /> | a WAF rule said no |
-| <Verdict v="BLOCKED" sub="rate limited" /> | HTTP 429 |
-| <Verdict v="BLOCKED" sub="geo-blocked" /> | HTTP 451, blocked for legal reasons from there |
+| Subtype                                      | What happened                                  |
+| -------------------------------------------- | ---------------------------------------------- |
+| <Verdict v="BLOCKED" sub="bot challenge" />  | an interactive challenge page                  |
+| <Verdict v="BLOCKED" sub="firewall block" /> | a WAF rule said no                             |
+| <Verdict v="BLOCKED" sub="rate limited" />   | HTTP 429                                       |
+| <Verdict v="BLOCKED" sub="geo-blocked" />    | HTTP 451, blocked for legal reasons from there |
 
 A real run against a site with bot protection:
 
 ```
-www.g2.com                                       Blocks bots · bot challenge 58%
+www.g2.com                                       Blocks bots · firewall block 80%
 It's up, but it blocks automated checks.
   Cloudflare's probes got HTTP 403 (bot protection): the site is reachable
   but blocks automated checks; your browser result decides
+  Your browser could reach it in 170ms
   All 5 outside probes reached it
 ```
 
-Confidence is low on purpose — 0.65 base, and only +0.15 when your browser got through. The rule is also skipped entirely if your browser failed: a site that blocks us *and* blocks you is a real problem, so it's classified on the evidence instead.
+Confidence is low on purpose — 0.65 base, and only +0.15 when your browser got through. The rule is also skipped entirely if your browser failed: a site that blocks us _and_ blocks you is a real problem, so it's classified on the evidence instead.
 
 ## It's the site
 
@@ -127,6 +143,22 @@ Two ways to get here:
 
 1. **At least two distinct Cloudflare locations failed, and they were at least 80% of the locations that answered.** Confidence from 0.80, up to +0.10 with four or more failing, +0.05 if your browser failed too, +0.05 if other IsItMe users are seeing it fail on other networks.
 2. **Only one location answered, it failed, and your browser failed too while still reaching `www.cloudflare.com`.** Your browser is the second vantage point. Confidence 0.60 — lower, because it's thinner evidence.
+
+A real run of the first rule, against `https://httpbin.org/status/503`, a URL that returns 503 on purpose. It also shows the five regions landing in five separate data centres, and the "Cloudflare might be the problem" banner firing — the 503s came back from Cloudflare rather than the site's own server, which is exactly the case the banner exists for, and it caps confidence at 0.70:
+
+```
+httpbin.org                                      Down everywhere 70%
+It's down from everywhere we checked.
+  IsItMe runs on Cloudflare too. Treat this result with care.
+  Cloudflare itself returned 5xx errors from 5 locations (not the site's origin)
+  5/5 distinct Cloudflare locations failed (AMS, DFW, ORD, KIX, MEL)
+  Cloudflare's edge (AMS) failed: HTTP 503
+  5/5 regions failed (wnam: HTTP 503, enam: HTTP 503, weur: HTTP 503,
+  apac: HTTP 503, oc: HTTP 503)
+  DNS resolved to 8 addresses in 21ms
+  Your browser could reach it, so it may be partially up
+  5 of 5 outside probes couldn't reach it
+```
 
 The subtype <Verdict v="DOWN_GLOBAL" sub="origin server failing" /> means Cloudflare itself answered fine and the site's own origin server behind it is what's failing (an HTTP 52x). That's a useful distinction if it's your site: the CDN is healthy, your server isn't.
 
@@ -144,21 +176,22 @@ This is also where a bad anycast route or a half-finished deploy shows up, and i
 
 **What it means for you:** the name itself is broken. No browser, VPN or router restart will help. If it's your domain, this is yours to fix — and it's usually registration, nameservers or DNSSEC.
 
-Both public resolvers (1.1.1.1 and 8.8.8.8) answered with **the same** error, or only one of them answered at all. Resolvers that *disagree* are deliberately not a DNS failure — that's a signal, not a verdict, because one resolver having a bad day isn't the domain's fault.
+Both public resolvers (1.1.1.1 and 8.8.8.8) answered with **the same** error, or only one of them answered at all. Resolvers that _disagree_ are deliberately not a DNS failure — that's a signal, not a verdict, because one resolver having a bad day isn't the domain's fault.
 
 ```
 definitely-not-a-real-domain-isitme-test.com    DNS failure · domain doesn't exist 95%
 The name doesn't resolve.
   The domain does not exist (NXDOMAIN from 1.1.1.1)
   8.8.8.8 agrees
+  Your browser's DNS lookup failed too
 ```
 
-| Subtype | What it means | Confidence base |
-|---|---|---|
-| <Verdict v="DNS_FAILURE" sub="domain doesn't exist" /> | NXDOMAIN — nothing is registered, or it's a typo | 0.95 |
-| <Verdict v="DNS_FAILURE" sub="DNSSEC broken" /> | the signatures don't validate, so every validating resolver refuses it; only the owner can fix it | — |
-| *(no subtype)* | SERVFAIL — the domain's own nameservers didn't answer | 0.85 |
-| *(no subtype)* | the domain exists but publishes no A/AAAA record | 0.80 |
+| Subtype                                                | What it means                                                                                     | Confidence base |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- | --------------- |
+| <Verdict v="DNS_FAILURE" sub="domain doesn't exist" /> | NXDOMAIN — nothing is registered, or it's a typo                                                  | 0.95            |
+| <Verdict v="DNS_FAILURE" sub="DNSSEC broken" />        | the signatures don't validate, so every validating resolver refuses it; only the owner can fix it | —               |
+| _(no subtype)_                                         | SERVFAIL — the domain's own nameservers didn't answer                                             | 0.85            |
+| _(no subtype)_                                         | the domain exists but publishes no A/AAAA record                                                  | 0.80            |
 
 Three extra things it will tell you when they apply: whether the domain's **own nameservers** answer when queried directly (which separates "the domain is broken" from "the resolvers are"), whether the **registration has expired** and by how many days, and whether **your browser's** own DNS lookup agreed. If your browser resolved a name that both public resolvers refused, confidence drops 0.15 — something is odd, and the card says so rather than hiding it.
 
@@ -168,8 +201,10 @@ Three extra things it will tell you when they apply: whether the domain's **own 
 
 Every location that answered failed with a TLS error. Usually an expired certificate, a name mismatch or an incomplete chain. Confidence from 0.80, plus 0.05 for each extra location that agrees.
 
+<ResultCard v-bind="tls" />
+
 > [!WARNING] You won't see this one on a local copy
-> Local `workerd` reports certificate failures as an opaque "internal error", so a genuinely expired certificate comes out as <Verdict v="INCONCLUSIVE" /> on a laptop. The example at the bottom of this page is exactly that case.
+> Local `workerd` reports certificate failures as an opaque "internal error", so a genuinely expired certificate comes out as <Verdict v="INCONCLUSIVE" /> on a laptop. On the live app, Cloudflare's edge turns the failed handshake into an HTTP 526, which is what the run above shows.
 
 ### <Verdict v="PARTIAL" />
 
@@ -180,34 +215,36 @@ Two rules produce it:
 **The page you asked for is gone, but the site isn't.** The URL returns 404 or 410 while the site's root works. Confidence 0.80.
 
 ```
-github.com                                       Partly broken · this page 404s 73%
+github.com                                       Partly broken · this page 404s 80%
 It answers, but the page looks broken.
   The site is up; this page returns 404
-  Cloudflare's edge (MAA) got HTTP 404 in 2560ms
-  5/5 regions reachable (median 1079ms)
-  DNS resolved to 1 address in 153ms
+  Cloudflare's edge (MXP) got HTTP 404 in 318ms
+  5/5 regions reachable (median 258ms)
+  DNS resolved to 1 address in 3ms
+  Your browser could reach it in 362ms
   All 5 outside probes reached it
 ```
 
 **Most locations saw a broken page.** More than half of the locations that looked at the page flagged it. Confidence 0.70, +0.10 when every location agrees.
 
-| Subtype | What was wrong |
-|---|---|
-| <Verdict v="PARTIAL" sub="parked domain" /> | a registrar parking page — the site is *gone*, not down |
-| <Verdict v="PARTIAL" sub="expected text missing" /> | you asked for a keyword and it wasn't on the page |
-| <Verdict v="PARTIAL" sub="error page" /> | HTTP 200, but the page reads like an error |
-| <Verdict v="PARTIAL" sub="blank page" /> | almost no content, and no sign of an app that would fill it in |
-| <Verdict v="PARTIAL" sub="this page 404s" /> | the path is gone, the root works |
+| Subtype                                             | What was wrong                                                 |
+| --------------------------------------------------- | -------------------------------------------------------------- |
+| <Verdict v="PARTIAL" sub="parked domain" />         | a registrar parking page — the site is _gone_, not down        |
+| <Verdict v="PARTIAL" sub="expected text missing" /> | you asked for a keyword and it wasn't on the page              |
+| <Verdict v="PARTIAL" sub="error page" />            | HTTP 200, but the page reads like an error                     |
+| <Verdict v="PARTIAL" sub="blank page" />            | almost no content, and no sign of an app that would fill it in |
+| <Verdict v="PARTIAL" sub="this page 404s" />        | the path is gone, the root works                               |
 
 The keyword case is the one you ask for yourself — see [checking for a keyword](/chat#check-for-a-keyword):
 
 ```
-example.com                                      Partly broken · expected text missing 73%
+example.com                                      Partly broken · expected text missing 80%
 It answers, but the page looks broken.
   Expected text not found on the page
-  Cloudflare's edge (MAA) got HTTP 200 in 1677ms
-  5/5 regions reachable (median 576ms)
-  DNS resolved to 3 addresses in 155ms, DNSSEC-validated
+  Cloudflare's edge (ORD) got HTTP 200 in 7ms
+  5/5 regions reachable (median 7ms)
+  DNS resolved to 4 addresses in 4ms, DNSSEC-validated
+  Your browser could reach it in 128ms
   All 5 outside probes reached it
 ```
 
@@ -225,7 +262,7 @@ This needs a Radar API token. Without one, Radar is skipped and this verdict can
 
 ## It's you
 
-Both of these are the whole reason the project exists, and both are **silent for watches** — a monitor that pages you because *your laptop* lost Wi-Fi is worse than no monitor.
+Both of these are the whole reason the project exists, and both are **silent for watches** — a monitor that pages you because _your laptop_ lost Wi-Fi is worse than no monitor.
 
 ### <Verdict v="LIKELY_YOUR_NETWORK" />
 
@@ -235,7 +272,7 @@ Every Cloudflare location that answered reached the site, and your browser faile
 
 That control request is the important one, and the card tells you which way it went:
 
-- **Your browser could reach `www.cloudflare.com`** → your connection works, and something is blocking *this site specifically*.
+- **Your browser could reach `www.cloudflare.com`** → your connection works, and something is blocking _this site specifically_.
 - **It couldn't reach that either** → your connection itself is down, and nothing about the site has been established.
 
 It also looks for the specific causes it can see: a DNS lookup that works from the edge but not from your browser, a network that blocks DNS-over-HTTPS and public resolvers altogether, and the hints below.
@@ -244,7 +281,7 @@ A separate, thinner branch gives the same verdict at 0.60 confidence when your b
 
 ### <Verdict v="ISP_OUTAGE" />
 
-**What it means for you:** it's not you *or* the site, it's the company between you. You can confirm it, you can't fix it, and you now have something concrete to tell them.
+**What it means for you:** it's not you _or_ the site, it's the company between you. You can confirm it, you can't fix it, and you now have something concrete to tell them.
 
 Same shape as above — servers fine, your browser failed — **plus** Cloudflare Radar reporting an ongoing outage or a verified traffic anomaly for your network (by ASN) or your country. Confidence from 0.75, +0.10 when Radar names your network specifically rather than your whole country, +0.05 when other IsItMe users on your network are failing too.
 
@@ -258,9 +295,7 @@ Radar events count while they're ongoing, or if they ended less than two hours b
 
 Confidence is always 0.50, the floor, and the card changes shape: the signals move into a box labelled **"What we saw, so you can judge"**, because the facts are still worth your time even when the conclusion isn't there.
 
-<ResultCard v-bind="inconclusive" />
-
-That run is the honest local-development version of a certificate error. Local `workerd` mostly reports TLS failures as "unknown error" — one region out of five got the real reason — and all five "regions" are the same machine, with no browser vantage. So the rules had one failing location, nothing to compare it to, and said so. On a real deployment this is <Verdict v="TLS_ERROR" />.
+There's no run to paste here. The live app answers from five separate data centres, so the thin-evidence cases this verdict is for — one location answering and failing with nothing to corroborate it, no location answering at all, or the edge and a region disagreeing about the same data centre — did not come up in any of the runs on this page. The expired certificate that used to be the example here now comes back as <Verdict v="TLS_ERROR" /> in production.
 
 #### Why this verdict exists at all
 
@@ -270,9 +305,9 @@ Because the alternative is lying. Every competing tool in this category answers 
 - **"It's you"** when it isn't sends you to restart a router that was never the problem.
 - Either one, once, costs the tool all of your trust in the ninety-five cases where it was right.
 
-So the rules were written to reach for this verdict whenever the evidence doesn't actually support a conclusion: one location answering and failing with nothing to corroborate it, no location answering at all, or a split where the edge and a region disagree about the same data centre. A split vote counts as *no data*, not as a vote for either side.
+So the rules were written to reach for this verdict whenever the evidence doesn't actually support a conclusion: one location answering and failing with nothing to corroborate it, no location answering at all, or a split where the edge and a region disagree about the same data centre. A split vote counts as _no data_, not as a vote for either side.
 
-The cost is admitted: on a laptop, where every region lands in one data centre, you will see this verdict for things that are genuinely down. On a real multi-region deployment it should be rare.
+The cost is admitted: on a laptop, where every region lands in one data centre, you will see this verdict for things that are genuinely down — an expired certificate is the usual one. On the deployed app, with five data centres answering, it is rare enough that we have no real example of it.
 
 ## Reading the rest of the card
 
@@ -282,15 +317,15 @@ A number from **0.50 to 0.95**, never outside it. There is no 100%: the measurem
 
 Each verdict starts from a base and then gains or loses:
 
-| Moves it up | Moves it down |
-|---|---|
-| more vantage points agreeing | each missing vantage point (−0.05) |
-| both DNS resolvers giving the same answer | each region that returned no data (−0.03) |
-| your own browser confirming the server result | your browser contradicting it |
-| other IsItMe users seeing the same thing | other users *not* seeing it |
-| Radar data being available at all | evidence that Cloudflare itself may be at fault (caps it at 0.70) |
+| Moves it up                                   | Moves it down                                                     |
+| --------------------------------------------- | ----------------------------------------------------------------- |
+| more vantage points agreeing                  | each missing vantage point (−0.05)                                |
+| both DNS resolvers giving the same answer     | each region that returned no data (−0.03)                         |
+| your own browser confirming the server result | your browser contradicting it                                     |
+| other IsItMe users seeing the same thing      | other users _not_ seeing it                                       |
+| Radar data being available at all             | evidence that Cloudflare itself may be at fault (caps it at 0.70) |
 
-Open **"Why *n*% confidence"** on any card for the actual arithmetic: the base, every adjustment and its label. Nothing is hidden, which also means nothing has to be taken on faith.
+Open **"Why _n_% confidence"** on any card for the actual arithmetic: the base, every adjustment and its label. Nothing is hidden, which also means nothing has to be taken on faith.
 
 Two caps worth knowing: a <Verdict v="HEALTHY" /> from a single Cloudflare location with no browser result can't exceed 0.70, and any verdict with a reason to suspect Cloudflare's own infrastructure is capped at 0.70 as well.
 
@@ -307,19 +342,19 @@ Missing evidence is always printed rather than quietly dropped — "Radar: no da
 
 ### Hints — "Looks like…"
 
-A separate list, under its own heading, of things about *your* setup that might explain what you're seeing. Hints are never allowed to pick a verdict. They are phrased as "looks like", because they are inferred:
+A separate list, under its own heading, of things about _your_ setup that might explain what you're seeing. Hints are never allowed to pick a verdict. They are phrased as "looks like", because they are inferred:
 
-| Hint | Why it appears |
-|---|---|
-| Cloudflare WARP is on | your trace says WARP is enabled |
-| Cloudflare Gateway filters your traffic | your organisation's policy may be blocking this site |
-| iCloud Private Relay | you're on Apple's relay network (AS36183) |
-| A VPN or proxy | your reported location and your time zone disagree |
-| A proxy or captive portal | the trace request came back with the wrong thing — sign in to the Wi-Fi portal |
-| Your network blocks DNS-over-HTTPS | neither public resolver answered from your browser, though the network otherwise works |
-| A broken IPv6 path | the site has an IPv6 address, so does your network, and only you failed |
-| The site publishes an unreachable IPv6 address | an AAAA record pointing somewhere nothing can reach |
-| The owner must renew the domain | the registration has expired |
+| Hint                                           | Why it appears                                                                         |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Cloudflare WARP is on                          | your trace says WARP is enabled                                                        |
+| Cloudflare Gateway filters your traffic        | your organisation's policy may be blocking this site                                   |
+| iCloud Private Relay                           | you're on Apple's relay network (AS36183)                                              |
+| A VPN or proxy                                 | your reported location and your time zone disagree                                     |
+| A proxy or captive portal                      | the trace request came back with the wrong thing — sign in to the Wi-Fi portal         |
+| Your network blocks DNS-over-HTTPS             | neither public resolver answered from your browser, though the network otherwise works |
+| A broken IPv6 path                             | the site has an IPv6 address, so does your network, and only you failed                |
+| The site publishes an unreachable IPv6 address | an AAAA record pointing somewhere nothing can reach                                    |
+| The owner must renew the domain                | the registration has expired                                                           |
 
 Each one comes with the thing to try, usually "turn it off and check again".
 
