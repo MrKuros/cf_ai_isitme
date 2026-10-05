@@ -1,7 +1,7 @@
 # IsItMe — is it down, or is it me?
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-528%20passing-brightgreen.svg)](test)
+[![CI](https://github.com/MrKuros/isitme/actions/workflows/ci.yml/badge.svg)](https://github.com/MrKuros/isitme/actions/workflows/ci.yml)
 [![Built on Cloudflare](https://img.shields.io/badge/built%20on-Cloudflare-F38020.svg)](https://developers.cloudflare.com/agents/)
 
 **Ask whether a site is down, and get told whether it's the site, one region, its
