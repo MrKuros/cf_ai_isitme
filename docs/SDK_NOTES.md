@@ -194,7 +194,7 @@ Notes:
 
 - `wrangler types env.d.ts` works offline; it types DO namespaces from `src/server.ts` exports. Re-run after changing wrangler.jsonc.
 - `RADAR_TOKEN` is optional, declared in `src/env-secrets.d.ts` (wrangler types can't see it without .dev.vars).
-- Rate limiter: `env.RATE_LIMITER.limit({ key }) -> { success }`. Config `simple.period` must be 10 or 60.
+- Rate limiter: the platform binding (`env.RATE_LIMITER.limit({ key })`, `simple.period` 10 or 60) deploys and types fine but **never refused a request in production** — 60 requests to one colo, zero 429s, on cached and uncacheable routes alike. Replaced by `RateDO` (`src/agents/rate-do.ts`), which was verified live: 20 served, 6 refused.
 - Analytics: `env.ANALYTICS.writeDataPoint({ blobs, doubles, indexes })`.
 - Tests: `npm test` (plain vitest, `vitest.config.ts`, does not load the Cloudflare vite plugin). Only pure modules are unit-tested.
 - `vite build` output goes to `dist/` (gitignored).

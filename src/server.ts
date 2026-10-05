@@ -5,17 +5,22 @@ import { TargetDO } from "./agents/target-do";
 import { ProbeDO } from "./agents/probe-do";
 import { ProviderDO } from "./agents/provider-do";
 import { TrendsDO } from "./agents/trends-do";
+import { RateDO } from "./agents/rate-do";
 import { IsItMeMcp } from "./agents/mcp";
 import { DiagnoseWorkflow } from "./workflow/diagnose";
 import { normalizeTarget } from "./lib/guard";
 import { clientIp, hashIp, netInfo, publicNetInfo } from "./lib/net";
 import { badgeSvg } from "./lib/badge";
+
+const RATE_LIMIT = 20;
+const RATE_PERIOD_MS = 60_000;
 import { pickLang } from "./lib/lang";
 import { supportBundle } from "./lib/bundle";
 import { CheckInput, HOST, RunInput } from "./shared/schemas";
 import { REPORT_TTL_DAYS, type ExtraCheck } from "./shared/types";
 
 export {
+  RateDO,
   UserAgent,
   TargetDO,
   ProbeDO,
@@ -56,9 +61,19 @@ function hostParam(raw: string): string | null {
   }
 }
 
+/** Rate limit one request. The key is "<route>:<client>"; the client half picks the object. */
 async function limited(env: Env, key: string) {
-  const { success } = await env.RATE_LIMITER.limit({ key });
-  return !success;
+  const client = key.slice(key.indexOf(":") + 1);
+  try {
+    return await env.RATE_DO.getByName(await hashIp(client)).over(
+      key,
+      RATE_LIMIT,
+      RATE_PERIOD_MS
+    );
+  } catch {
+    // A limiter outage must not take the app down with it.
+    return false;
+  }
 }
 
 export default {

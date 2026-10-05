@@ -95,6 +95,8 @@ interface StartOptions {
 const RUN_WAIT_MS = 120_000;
 const WEBHOOK_TIMEOUT_MS = 5000;
 /** A run still "running" after this lost its terminal callback. */
+const CHAT_LIMIT = 20;
+const CHAT_PERIOD_MS = 60_000;
 const STALE_RUN_MS = 5 * 60_000;
 const DAY_MS = 24 * 60 * 60_000;
 const EMAIL = z.email().max(254);
@@ -218,16 +220,27 @@ export class UserAgent extends AIChatAgent<Env, AgentState> {
         .catch(() => {});
   }
 
+  /** Chat turns share the RateDO limiter the Worker routes use; the platform binding never refused one. */
+  async #overChatLimit(client: string, key: string): Promise<boolean> {
+    try {
+      return await this.env.RATE_DO.getByName(await hashIp(client)).over(
+        key,
+        CHAT_LIMIT,
+        CHAT_PERIOD_MS
+      );
+    } catch {
+      return false;
+    }
+  }
+
   async onChatMessage(_onFinish: unknown, options?: OnChatMessageOptions) {
     // Device ids are client-made, so the IP limit is the one that holds.
     const ip = (getCurrentAgent().connection?.state as ConnState | null)?.ip;
     const [device, byIp] = await Promise.all([
-      this.env.RATE_LIMITER.limit({ key: `chat:${this.name}` }),
-      ip
-        ? this.env.RATE_LIMITER.limit({ key: `chat-ip:${ip}` })
-        : { success: true }
+      this.#overChatLimit(this.name, `chat:${this.name}`),
+      ip ? this.#overChatLimit(ip, `chat-ip:${ip}`) : false
     ]);
-    if (!device.success || !byIp.success) {
+    if (device || byIp) {
       return createUIMessageStreamResponse({
         stream: createUIMessageStream({
           execute: ({ writer }) => {

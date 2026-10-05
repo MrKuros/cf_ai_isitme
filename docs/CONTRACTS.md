@@ -154,7 +154,7 @@ dailyDigest(): Promise<void>
 - It is **only** an HTTP client of `GET /api/v1/check?url=[&expect=]`, with the default `wait=1`: no agent, no WebSocket, no browser vantage (`wantsBrowser: false` server-side), so a CLI verdict never has the browser vantage a chat check has. It does **not** poll `GET /api/v1/runs/:id`; `wait=1` blocks server-side (up to 2 min) and `--timeout` (default 125 s) aborts client-side, which covers the one-shot command.
 - Flags: `--expect` / `--json` / `--api` / `--timeout` / `--help` / `--version`. Exit 0 for `HEALTHY` or `SLOW`, 1 for everything else, so `isitme example.com || exit 1` is a CI gate. `DEFAULT_API` near the top of the file is the one place the base URL is hardcoded (`--api` and `$ISITME_API` override it); the deploy must set the real URL there.
 - Default API base is `SITE_URL` (the deployed Worker), overridable with `--api` / `ISITME_API`.
-- It prints `CheckOutcome` fields; `--json` prints the raw body. It must respect the 429 the shared `RATE_LIMITER` returns (20 requests per 60 s per IP) rather than retrying hard.
+- It prints `CheckOutcome` fields; `--json` prints the raw body. It must respect the 429 the shared limiter returns (20 requests per 60 s per IP) rather than retrying hard.
 
 ---
 
@@ -778,7 +778,7 @@ These are internal helpers. The names are suggestions, but the behavior is fixed
 
 ### Chat tools
 
-`CHAT_MODEL` (GLM-4.7-Flash; Llama 3.3 tool-call streaming was corrupted), `stopWhen: stepCountIs(5)`. Rate-limit each turn with `env.RATE_LIMITER.limit({ key: "chat:" + this.name })`.
+`CHAT_MODEL` (GLM-4.7-Flash; Llama 3.3 tool-call streaming was corrupted), `stopWhen: stepCountIs(5)`. Rate-limit each turn through `env.RATE_DO` (per device and per IP).
 
 | tool         | input (zod)                                                                                       | behavior / output                                                                                                                                                                                           |
 | ------------ | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -875,7 +875,7 @@ dailyDigest(): Promise<void>                                                    
 
 Every route carrying a host (`/api/host/:host`, `/api/report/:host/:id[.txt]`, `/badge/:host.svg`, and `POST /api/extra-check`'s `host` field) resolves it through one helper, `hostParam()`, which applies the same `isPublicHostParam` round trip the client uses — so the public-host gate is server-side, not advisory, and `400 { error: "bad host" }` ("bad request" for `extra-check`) is the answer for `localhost`, a private or reserved address, or a bare label like `aaaa`. A public IPv6 literal is accepted in the unbracketed form reports are stored under (`2606:4700::1111`), which is what the helper brackets before the round trip. The gate also bounds `TARGET_DO`, whose constructor persists a Durable Object for every novel name. `scripts/smoke.mjs` asserts it on all four routes.
 
-`RATE_LIMITER` allows 20 requests per 60s per key.
+`RATE_DO` allows 20 requests per 60s per key: one Durable Object per hashed client, fixed window, in-memory counters (see `src/lib/window.ts`). The platform `RATE_LIMITER` binding was dropped because it never refused a request in production.
 
 **Deliberate deviations from the spec:**
 
