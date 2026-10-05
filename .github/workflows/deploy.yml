@@ -23,7 +23,7 @@ jobs:
       SITE: https://cf-ai-isitme.patelkashishpatel032.workers.dev
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 25
           cache: npm
