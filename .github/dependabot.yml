@@ -15,6 +15,9 @@ updates:
       # agents@0.24 pins a peer range that excludes @modelcontextprotocol/sdk 1.31,
       # so npm ci fails on the bump. Unpin when the Agents SDK widens it.
       - dependency-name: "@modelcontextprotocol/sdk"
+      # vitepress-plugin-mermaid 2.x peers on mermaid 11, so mermaid 12 breaks npm ci.
+      - dependency-name: mermaid
+        update-types: [version-update:semver-major]
     groups:
       # One PR per ecosystem keeps the noise down; CI proves each batch.
       cloudflare:
