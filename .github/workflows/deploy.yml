@@ -28,9 +28,11 @@ jobs:
           node-version: 25
           cache: npm
       - run: npm ci
+      # npm run deploy = vite build && wrangler deploy. Calling wrangler alone
+      # ships a Worker with no client assets, so every page 404s.
       - name: Deploy
         if: env.CLOUDFLARE_API_TOKEN != ''
-        run: npx wrangler deploy
+        run: npm run deploy
 
       # A deploy that returns 500 on every check is worse than no deploy.
       - name: Smoke test
