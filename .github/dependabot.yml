@@ -5,6 +5,13 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # workers-ai-provider v4 requires AI SDK v7; this project is on v6 and the
+      # upgrade is a deliberate, separate piece of work.
+      - dependency-name: workers-ai-provider
+        update-types: [version-update:semver-major]
+      - dependency-name: ai
+        update-types: [version-update:semver-major]
     groups:
       # One PR per ecosystem keeps the noise down; CI proves each batch.
       cloudflare:
