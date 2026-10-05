@@ -126,7 +126,8 @@ application, which asks for an AI application with four components:
 | **User input via chat** | A React SPA served from Workers static assets, over the Agents SDK WebSocket (`useAgent` + `useAgentChat`) |
 | **Memory / state** | `UserAgent` SQLite (reports, runs) plus synced state (watches, alerts, history), persisted chat history, and `TargetDO` SQLite (crowd checks, public reports, latency samples). The system prompt carries your network, your watches and your recent verdicts |
 
-The prompt history the assignment asks for is in [PROMPTS.md](PROMPTS.md).
+The prompt history the assignment asks for ships with the submission copy at
+[MrKuros/cf_ai_isitme](https://github.com/MrKuros/cf_ai_isitme).
 
 ## Prior art
 
